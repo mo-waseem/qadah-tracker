@@ -1,0 +1,122 @@
+import { useQada, useUpdateQadaCount } from "@/hooks/use-qada";
+import { useAuth } from "@/hooks/use-auth";
+import { PrayerCard } from "@/components/PrayerCard";
+import { Sun, Moon, Sunrise, Sunset, CloudSun, Star } from "lucide-react";
+import { motion } from "framer-motion";
+
+const prayers = [
+  { id: 'fajr', name: 'Fajr', arabic: 'الفجر', icon: <Sunrise />, color: 'bg-emerald-500' },
+  { id: 'dhuhr', name: 'Dhuhr', arabic: 'الظهر', icon: <Sun />, color: 'bg-amber-500' },
+  { id: 'asr', name: 'Asr', arabic: 'العصر', icon: <CloudSun />, color: 'bg-orange-500' },
+  { id: 'maghrib', name: 'Maghrib', arabic: 'المغرب', icon: <Sunset />, color: 'bg-red-500' },
+  { id: 'isha', name: 'Isha', arabic: 'العشاء', icon: <Moon />, color: 'bg-indigo-600' },
+  { id: 'witr', name: 'Witr', arabic: 'الوتر', icon: <Star />, color: 'bg-purple-600' },
+] as const;
+
+export default function Dashboard() {
+  const { data: qada, isLoading } = useQada();
+  const { user, logout } = useAuth();
+  const updateMutation = useUpdateQadaCount();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!qada) return null; // Should be redirected by logic in Home.tsx
+
+  const totalCompleted = 
+    qada.fajrCompleted + qada.dhuhrCompleted + qada.asrCompleted + 
+    qada.maghribCompleted + qada.ishaCompleted + qada.witrCompleted;
+
+  const totalMissed = 
+    qada.fajrCount + qada.dhuhrCount + qada.asrCount + 
+    qada.maghribCount + qada.ishaCount + qada.witrCount;
+
+  const handleUpdate = (prayer: typeof prayers[number]['id'], action: 'increment' | 'decrement') => {
+    updateMutation.mutate({ prayer, action });
+  };
+
+  return (
+    <div className="min-h-screen bg-background pb-20">
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg font-display">
+              {user?.firstName?.[0] || 'U'}
+            </div>
+            <div>
+              <h1 className="text-sm font-medium text-muted-foreground">Welcome back,</h1>
+              <p className="font-bold text-foreground">{user?.firstName || 'Brother/Sister'}</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => logout()}
+            className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Sign Out
+          </button>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        {/* Summary Card */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-primary to-emerald-700 rounded-3xl p-8 mb-10 text-white shadow-xl shadow-primary/20 relative overflow-hidden"
+        >
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+          
+          <div className="relative z-10 flex flex-col md:flex-row justify-between items-end md:items-center gap-6">
+            <div>
+              <p className="text-primary-foreground/80 font-medium mb-1">Total Progress</p>
+              <h2 className="text-4xl md:text-5xl font-bold font-display">{totalCompleted.toLocaleString()} <span className="text-2xl opacity-60 font-sans font-normal">prayers done</span></h2>
+            </div>
+            <div className="text-right">
+              <p className="text-primary-foreground/80 font-medium mb-1">Remaining</p>
+              <p className="text-3xl font-bold">{(totalMissed - totalCompleted).toLocaleString()}</p>
+            </div>
+          </div>
+
+          <div className="mt-8 h-3 bg-black/20 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-white rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${(totalCompleted / totalMissed) * 100}%` }}
+            />
+          </div>
+        </motion.div>
+
+        {/* Prayer Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {prayers.map((prayer, index) => (
+            <motion.div
+              key={prayer.id}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.05 }}
+            >
+              <PrayerCard
+                name={prayer.name}
+                arabicName={prayer.arabic}
+                icon={prayer.icon}
+                color={prayer.color}
+                // @ts-ignore - dynamic key access
+                total={qada[`${prayer.id}Count`]}
+                // @ts-ignore - dynamic key access
+                completed={qada[`${prayer.id}Completed`]}
+                onIncrement={() => handleUpdate(prayer.id, 'increment')}
+                onDecrement={() => handleUpdate(prayer.id, 'decrement')}
+                isUpdating={updateMutation.isPending}
+              />
+            </motion.div>
+          ))}
+        </div>
+      </main>
+    </div>
+  );
+}

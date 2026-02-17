@@ -1,18 +1,41 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, date, boolean, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { users } from "./models/auth";
 
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+export * from "./models/auth";
+
+export const qadaProgress = pgTable("qada_progress", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id),
+  missedStartDate: date("missed_start_date").notNull(),
+  missedEndDate: date("missed_end_date").notNull(),
+  
+  // Total missed counts
+  fajrCount: integer("fajr_count").notNull().default(0),
+  dhuhrCount: integer("dhuhr_count").notNull().default(0),
+  asrCount: integer("asr_count").notNull().default(0),
+  maghribCount: integer("maghrib_count").notNull().default(0),
+  ishaCount: integer("isha_count").notNull().default(0),
+  witrCount: integer("witr_count").notNull().default(0),
+
+  // Completed counts
+  fajrCompleted: integer("fajr_completed").notNull().default(0),
+  dhuhrCompleted: integer("dhuhr_completed").notNull().default(0),
+  asrCompleted: integer("asr_completed").notNull().default(0),
+  maghribCompleted: integer("maghrib_completed").notNull().default(0),
+  ishaCompleted: integer("isha_completed").notNull().default(0),
+  witrCompleted: integer("witr_completed").notNull().default(0),
+
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+export const insertQadaProgressSchema = createInsertSchema(qadaProgress).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+export type QadaProgress = typeof qadaProgress.$inferSelect;
+export type InsertQadaProgress = z.infer<typeof insertQadaProgressSchema>;

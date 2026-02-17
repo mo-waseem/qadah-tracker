@@ -1,0 +1,99 @@
+import { Link } from "wouter";
+import { motion } from "framer-motion";
+import { ArrowRight, Moon, Sun, CheckCircle2 } from "lucide-react";
+
+export default function Landing() {
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Hero Section */}
+      <header className="w-full px-6 py-8 flex justify-between items-center max-w-7xl mx-auto">
+        <div className="flex items-center gap-2">
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white">
+            <Moon className="w-6 h-6" />
+          </div>
+          <span className="text-xl font-bold font-display tracking-tight">QadaTracker</span>
+        </div>
+        <Link href="/api/login" className="text-sm font-medium hover:text-primary transition-colors">
+          Sign In
+        </Link>
+      </header>
+
+      <main className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 relative overflow-hidden">
+        {/* Background decorations */}
+        <div className="absolute top-1/4 -left-20 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
+
+        <div className="max-w-4xl w-full mx-auto text-center z-10 space-y-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <span className="inline-block px-4 py-1.5 rounded-full bg-accent/10 text-accent-foreground text-sm font-medium mb-6">
+              Islamic Utility App
+            </span>
+            <h1 className="text-5xl md:text-7xl font-bold font-display text-foreground tracking-tight leading-tight">
+              Reclaim Your <span className="text-primary">Spiritual Debt</span>
+            </h1>
+            <p className="mt-6 text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+              A simple, dignified way to calculate and track your missed prayers. 
+              Turn anxiety into action with a clear path forward.
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4"
+          >
+            <a href="/api/login" className="w-full sm:w-auto px-8 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-lg shadow-lg shadow-primary/25 hover:shadow-xl hover:translate-y-[-2px] active:translate-y-0 transition-all flex items-center justify-center gap-2">
+              Start Tracking Now
+              <ArrowRight className="w-5 h-5" />
+            </a>
+          </motion.div>
+        </div>
+
+        {/* Feature Grid */}
+        <div className="max-w-7xl mx-auto mt-24 grid grid-cols-1 md:grid-cols-3 gap-8 px-4 w-full">
+          {[
+            {
+              icon: <Moon className="w-6 h-6 text-primary" />,
+              title: "Smart Calculation",
+              desc: "Input your dates and let us calculate exactly what you owe."
+            },
+            {
+              icon: <CheckCircle2 className="w-6 h-6 text-accent" />,
+              title: "Visual Progress",
+              desc: "See your journey to completion with beautiful progress rings."
+            },
+            {
+              icon: <Sun className="w-6 h-6 text-orange-500" />,
+              title: "Daily Motivation",
+              desc: "Track your daily makeup prayers with a single tap."
+            }
+          ].map((feature, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1 + 0.4 }}
+              className="p-8 rounded-3xl bg-white/50 dark:bg-card/50 border border-border/50 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-card/80 transition-colors"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-background shadow-sm flex items-center justify-center mb-4">
+                {feature.icon}
+              </div>
+              <h3 className="text-xl font-bold font-display mb-2">{feature.title}</h3>
+              <p className="text-muted-foreground">{feature.desc}</p>
+            </motion.div>
+          ))}
+        </div>
+      </main>
+
+      <footer className="py-8 text-center text-sm text-muted-foreground border-t border-border/40 mt-20">
+        <p>&copy; {new Date().getFullYear()} QadaTracker. May Allah accept your efforts.</p>
+      </footer>
+    </div>
+  );
+}
