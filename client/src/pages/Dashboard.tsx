@@ -1,7 +1,6 @@
 import { useQada, useUpdateQadaCount } from "@/hooks/use-qada";
-import { useAuth } from "@/hooks/use-auth";
 import { PrayerCard } from "@/components/PrayerCard";
-import { Sun, Moon, Sunrise, Sunset, CloudSun, Star } from "lucide-react";
+import { Sun, Moon, Sunrise, Sunset, CloudSun, Star, Settings } from "lucide-react";
 import { motion } from "framer-motion";
 
 const prayers = [
@@ -15,7 +14,6 @@ const prayers = [
 
 export default function Dashboard() {
   const { data: qada, isLoading } = useQada();
-  const { user, logout } = useAuth();
   const updateMutation = useUpdateQadaCount();
 
   if (isLoading) {
@@ -26,7 +24,7 @@ export default function Dashboard() {
     );
   }
 
-  if (!qada) return null; // Should be redirected by logic in Home.tsx
+  if (!qada) return null;
 
   const totalCompleted = 
     qada.fajrCompleted + qada.dhuhrCompleted + qada.asrCompleted + 
@@ -45,20 +43,18 @@ export default function Dashboard() {
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg font-display">
-              {user?.firstName?.[0] || 'U'}
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white">
+              <Moon className="w-5 h-5" />
             </div>
-            <div>
-              <h1 className="text-sm font-medium text-muted-foreground">Welcome back,</h1>
-              <p className="font-bold text-foreground">{user?.firstName || 'Brother/Sister'}</p>
-            </div>
+            <span className="font-bold font-display tracking-tight">QadaTracker</span>
           </div>
           <button 
-            onClick={() => logout()}
-            className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => window.location.hash = '#setup'}
+            className="p-2 rounded-full hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+            title="Adjust Dates"
           >
-            Sign Out
+            <Settings className="w-5 h-5" />
           </button>
         </div>
       </header>

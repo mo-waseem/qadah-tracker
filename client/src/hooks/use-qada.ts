@@ -1,18 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type QadaSetupInput, type QadaUpdateInput, type QadaResponse } from "@shared/routes";
+import { getProgress, saveProgress, type QadaData } from "@/lib/idb";
 import { useToast } from "@/hooks/use-toast";
+import { differenceInDays } from "date-fns";
 
 export function useQada() {
-  return useQuery<QadaResponse | null>({
-    queryKey: [api.qada.get.path],
+  return useQuery<QadaData | null>({
+    queryKey: ["qada-progress"],
     queryFn: async () => {
-      const res = await fetch(api.qada.get.path, { credentials: "include" });
-      if (res.status === 404) return null;
-      if (res.status === 401) throw new Error("Unauthorized");
-      if (!res.ok) throw new Error("Failed to fetch qada data");
-      return await res.json();
+      const data = await getProgress();
+      return data || null;
     },
-    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 }
 
@@ -21,32 +18,39 @@ export function useSetupQada() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: QadaSetupInput) => {
-      const res = await fetch(api.qada.setup.path, {
-        method: api.qada.setup.method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-        credentials: "include",
-      });
+    mutationFn: async (input: { missedStartDate: string; missedEndDate: string }) => {
+      const start = new Date(input.missedStartDate);
+      const end = new Date(input.missedEndDate);
+      const diffDays = Math.max(0, differenceInDays(end, start));
 
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Failed to setup tracking");
-      }
-      return await res.json();
+      const newData: QadaData = {
+        id: 1,
+        missedStartDate: input.missedStartDate,
+        missedEndDate: input.missedEndDate,
+        fajrCount: diffDays,
+        dhuhrCount: diffDays,
+        asrCount: diffDays,
+        maghribCount: diffDays,
+        ishaCount: diffDays,
+        witrCount: diffDays,
+        fajrCompleted: 0,
+        dhuhrCompleted: 0,
+        asrCompleted: 0,
+        maghribCompleted: 0,
+        ishaCompleted: 0,
+        witrCompleted: 0,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await saveProgress(newData);
+      return newData;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [api.qada.get.path] });
+      queryClient.invalidateQueries({ queryKey: ["qada-progress"] });
+      window.location.hash = ''; // Return to dashboard
       toast({
         title: "Setup Complete",
         description: "Your missed prayer tracking has started.",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Setup Failed",
-        description: error.message,
-        variant: "destructive",
       });
     },
   });
@@ -57,31 +61,33 @@ export function useUpdateQadaCount() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: QadaUpdateInput) => {
-      const res = await fetch(api.qada.updateCounts.path, {
-        method: api.qada.updateCounts.method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-        credentials: "include",
-      });
+    mutationFn: async (data: { prayer: string; action: 'increment' | 'decrement' }) => {
+      const current = await getProgress();
+      if (!current) throw new Error("No progress found");
 
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Failed to update count");
-      }
-      return await res.json();
+      const fieldName = `${data.prayer}Completed` as keyof QadaData;
+      const currentCount = Number(current[fieldName]);
+      const newCount = data.action === 'increment' ? currentCount + 1 : Math.max(0, currentCount - 1);
+
+      const updated = {
+        ...current,
+        [fieldName]: newCount,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await saveProgress(updated);
+      return updated;
     },
     onMutate: async (newData) => {
-      // Optimistic update
-      await queryClient.cancelQueries({ queryKey: [api.qada.get.path] });
-      const previousData = queryClient.getQueryData<QadaResponse>([api.qada.get.path]);
+      await queryClient.cancelQueries({ queryKey: ["qada-progress"] });
+      const previousData = queryClient.getQueryData<QadaData>(["qada-progress"]);
 
       if (previousData) {
-        const fieldName = `${newData.prayer}Completed` as keyof QadaResponse;
+        const fieldName = `${newData.prayer}Completed` as keyof QadaData;
         const currentCount = Number(previousData[fieldName]);
         const newCount = newData.action === 'increment' ? currentCount + 1 : Math.max(0, currentCount - 1);
 
-        queryClient.setQueryData<QadaResponse>([api.qada.get.path], {
+        queryClient.setQueryData<QadaData>(["qada-progress"], {
           ...previousData,
           [fieldName]: newCount,
         });
@@ -91,7 +97,7 @@ export function useUpdateQadaCount() {
     },
     onError: (err, newData, context) => {
       if (context?.previousData) {
-        queryClient.setQueryData([api.qada.get.path], context.previousData);
+        queryClient.setQueryData(["qada-progress"], context.previousData);
       }
       toast({
         title: "Update Failed",
@@ -100,7 +106,7 @@ export function useUpdateQadaCount() {
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: [api.qada.get.path] });
+      queryClient.invalidateQueries({ queryKey: ["qada-progress"] });
     },
   });
 }

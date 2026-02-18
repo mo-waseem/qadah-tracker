@@ -1,14 +1,21 @@
-import { useAuth } from "@/hooks/use-auth";
+import { useState, useEffect } from "react";
 import { useQada } from "@/hooks/use-qada";
 import Dashboard from "./Dashboard";
 import Setup from "./Setup";
 import Landing from "./Landing";
 
 export default function Home() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { data: qada, isLoading: qadaLoading } = useQada();
+  const [showSetup, setShowSetup] = useState(false);
 
-  if (authLoading || (isAuthenticated && qadaLoading)) {
+  useEffect(() => {
+    const handleHash = () => setShowSetup(window.location.hash === '#setup');
+    window.addEventListener('hashchange', handleHash);
+    handleHash();
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
+
+  if (qadaLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -19,16 +26,9 @@ export default function Home() {
     );
   }
 
-  // Not logged in -> Landing Page
-  if (!isAuthenticated) {
-    return <Landing />;
-  }
-
-  // Logged in but no data -> Setup
   if (!qada) {
-    return <Setup />;
+    return showSetup ? <Setup /> : <Landing />;
   }
 
-  // Logged in and has data -> Dashboard
   return <Dashboard />;
 }

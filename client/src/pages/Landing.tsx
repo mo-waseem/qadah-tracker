@@ -13,9 +13,6 @@ export default function Landing() {
           </div>
           <span className="text-xl font-bold font-display tracking-tight">QadaTracker</span>
         </div>
-        <Link href="/api/login" className="text-sm font-medium hover:text-primary transition-colors">
-          Sign In
-        </Link>
       </header>
 
       <main className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 relative overflow-hidden">
@@ -47,10 +44,13 @@ export default function Landing() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4"
           >
-            <a href="/api/login" className="w-full sm:w-auto px-8 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-lg shadow-lg shadow-primary/25 hover:shadow-xl hover:translate-y-[-2px] active:translate-y-0 transition-all flex items-center justify-center gap-2">
+            <button 
+              onClick={() => window.location.hash = '#setup'}
+              className="w-full sm:w-auto px-8 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-lg shadow-lg shadow-primary/25 hover:shadow-xl hover:translate-y-[-2px] active:translate-y-0 transition-all flex items-center justify-center gap-2"
+            >
               Start Tracking Now
               <ArrowRight className="w-5 h-5" />
-            </a>
+            </button>
           </motion.div>
         </div>
 
