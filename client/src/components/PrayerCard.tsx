@@ -1,8 +1,10 @@
 import { motion } from "framer-motion";
-import { Plus, Minus, CheckCircle2 } from "lucide-react";
+import { Plus, Minus } from "lucide-react";
 import { CircularProgressbarWithChildren, buildStyles } from "react-circular-progressbar";
 import "react-circular-progressbar/dist/styles.css";
 import { cn } from "@/lib/utils";
+import { useLanguageStore } from "@/hooks/use-language";
+import { translations } from "@/lib/translations";
 
 interface PrayerCardProps {
   name: string;
@@ -29,6 +31,8 @@ export function PrayerCard({
 }: PrayerCardProps) {
   const percentage = Math.min(100, Math.round((completed / total) * 100));
   const remaining = Math.max(0, total - completed);
+  const { language } = useLanguageStore();
+  const t = translations[language];
 
   return (
     <motion.div
@@ -53,7 +57,7 @@ export function PrayerCard({
           <CircularProgressbarWithChildren
             value={percentage}
             styles={buildStyles({
-              pathColor: `var(--theme-${name.toLowerCase()})`,
+              pathColor: `var(--primary)`,
               trailColor: 'rgba(0,0,0,0.05)',
               strokeLinecap: 'round',
               pathTransitionDuration: 0.5,
@@ -61,18 +65,18 @@ export function PrayerCard({
           >
             <div className="text-center flex flex-col items-center justify-center">
               <span className="text-3xl font-bold text-foreground">{percentage}%</span>
-              <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Completed</span>
+              <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">{t.done}</span>
             </div>
           </CircularProgressbarWithChildren>
         </div>
 
         <div className="w-full grid grid-cols-2 gap-4 mb-6">
           <div className="bg-muted/50 rounded-xl p-3 text-center">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Left</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">{t.left}</p>
             <p className="text-lg font-bold text-foreground">{remaining.toLocaleString()}</p>
           </div>
           <div className="bg-muted/50 rounded-xl p-3 text-center">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Done</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">{t.done}</p>
             <p className="text-lg font-bold text-primary">{completed.toLocaleString()}</p>
           </div>
         </div>
@@ -95,7 +99,7 @@ export function PrayerCard({
             )}
           >
             <Plus className="w-5 h-5" />
-            <span>Complete One</span>
+            <span>{t.done}</span>
           </button>
         </div>
       </div>

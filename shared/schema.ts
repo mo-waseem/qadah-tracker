@@ -1,17 +1,14 @@
-import { pgTable, text, serial, integer, date, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, integer, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-import { users } from "./models/auth";
-
-export * from "./models/auth";
 
 export const qadaProgress = pgTable("qada_progress", {
   id: serial("id").primaryKey(),
-  userId: text("user_id").notNull().references(() => users.id),
-  missedStartDate: date("missed_start_date").notNull(),
-  missedEndDate: date("missed_end_date").notNull(),
+  userId: integer("user_id"),
+  missedStartDate: varchar("missed_start_date").notNull(),
+  missedEndDate: varchar("missed_end_date").notNull(),
   
-  // Total missed counts
+  // Total counts to complete
   fajrCount: integer("fajr_count").notNull().default(0),
   dhuhrCount: integer("dhuhr_count").notNull().default(0),
   asrCount: integer("asr_count").notNull().default(0),
@@ -35,5 +32,5 @@ export const insertQadaProgressSchema = createInsertSchema(qadaProgress).omit({
   updatedAt: true,
 });
 
-export type QadaProgress = typeof qadaProgress.$inferSelect;
 export type InsertQadaProgress = z.infer<typeof insertQadaProgressSchema>;
+export type QadaProgress = typeof qadaProgress.$inferSelect;
