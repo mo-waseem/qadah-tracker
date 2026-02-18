@@ -44,7 +44,6 @@ export class DatabaseStorage implements IStorage {
       case 'asr': columnKey = 'asrCompleted'; break;
       case 'maghrib': columnKey = 'maghribCompleted'; break;
       case 'isha': columnKey = 'ishaCompleted'; break;
-      case 'witr': columnKey = 'witrCompleted'; break;
       default: throw new Error(`Invalid prayer: ${prayer}`);
     }
 

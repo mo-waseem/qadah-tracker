@@ -12,13 +12,11 @@ export interface QadaData {
   asrCount: number;
   maghribCount: number;
   ishaCount: number;
-  witrCount: number;
   fajrCompleted: number;
   dhuhrCompleted: number;
   asrCompleted: number;
   maghribCompleted: number;
   ishaCompleted: number;
-  witrCompleted: number;
   updatedAt: string;
 }
 

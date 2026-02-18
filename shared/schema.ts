@@ -17,7 +17,6 @@ export const qadaProgress = pgTable("qada_progress", {
   asrCount: integer("asr_count").notNull().default(0),
   maghribCount: integer("maghrib_count").notNull().default(0),
   ishaCount: integer("isha_count").notNull().default(0),
-  witrCount: integer("witr_count").notNull().default(0),
 
   // Completed counts
   fajrCompleted: integer("fajr_completed").notNull().default(0),
@@ -25,7 +24,6 @@ export const qadaProgress = pgTable("qada_progress", {
   asrCompleted: integer("asr_completed").notNull().default(0),
   maghribCompleted: integer("maghrib_completed").notNull().default(0),
   ishaCompleted: integer("isha_completed").notNull().default(0),
-  witrCompleted: integer("witr_completed").notNull().default(0),
 
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

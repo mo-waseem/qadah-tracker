@@ -1,8 +1,13 @@
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { ArrowRight, Moon, Sun, CheckCircle2 } from "lucide-react";
+import { ArrowRight, Moon, Sun, CheckCircle2, Globe } from "lucide-react";
+import { useLanguageStore } from "@/hooks/use-language";
+import { translations } from "@/lib/translations";
 
 export default function Landing() {
+  const { language, setLanguage } = useLanguageStore();
+  const t = translations[language];
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Hero Section */}
@@ -11,7 +16,16 @@ export default function Landing() {
           <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white">
             <Moon className="w-6 h-6" />
           </div>
-          <span className="text-xl font-bold font-display tracking-tight">QadaTracker</span>
+          <span className="text-xl font-bold font-display tracking-tight">{t.appName}</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-accent transition-colors text-sm font-medium"
+          >
+            <Globe className="w-4 h-4" />
+            {language === 'en' ? 'العربية' : 'English'}
+          </button>
         </div>
       </header>
 
@@ -27,14 +41,14 @@ export default function Landing() {
             transition={{ duration: 0.6 }}
           >
             <span className="inline-block px-4 py-1.5 rounded-full bg-accent/10 text-accent-foreground text-sm font-medium mb-6">
-              Islamic Utility App
+              {t.subtitle}
             </span>
             <h1 className="text-5xl md:text-7xl font-bold font-display text-foreground tracking-tight leading-tight">
-              Reclaim Your <span className="text-primary">Spiritual Debt</span>
+              {t.heroTitle.split(t.appName).join('')}
+              <span className="text-primary">{language === 'en' ? 'Spiritual Debt' : 'ديونك الروحية'}</span>
             </h1>
             <p className="mt-6 text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              A simple, dignified way to calculate and track your missed prayers. 
-              Turn anxiety into action with a clear path forward.
+              {t.heroDesc}
             </p>
           </motion.div>
 
@@ -48,8 +62,8 @@ export default function Landing() {
               onClick={() => window.location.hash = '#setup'}
               className="w-full sm:w-auto px-8 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-lg shadow-lg shadow-primary/25 hover:shadow-xl hover:translate-y-[-2px] active:translate-y-0 transition-all flex items-center justify-center gap-2"
             >
-              Start Tracking Now
-              <ArrowRight className="w-5 h-5" />
+              {t.startBtn}
+              <ArrowRight className={`w-5 h-5 ${language === 'ar' ? 'rotate-180' : ''}`} />
             </button>
           </motion.div>
         </div>
@@ -59,18 +73,18 @@ export default function Landing() {
           {[
             {
               icon: <Moon className="w-6 h-6 text-primary" />,
-              title: "Smart Calculation",
-              desc: "Input your dates and let us calculate exactly what you owe."
+              title: t.smartCalc,
+              desc: t.smartCalcDesc
             },
             {
               icon: <CheckCircle2 className="w-6 h-6 text-accent" />,
-              title: "Visual Progress",
-              desc: "See your journey to completion with beautiful progress rings."
+              title: t.visualProg,
+              desc: t.visualProgDesc
             },
             {
               icon: <Sun className="w-6 h-6 text-orange-500" />,
-              title: "Daily Motivation",
-              desc: "Track your daily makeup prayers with a single tap."
+              title: t.dailyMotiv,
+              desc: t.dailyMotivDesc
             }
           ].map((feature, i) => (
             <motion.div
@@ -92,7 +106,7 @@ export default function Landing() {
       </main>
 
       <footer className="py-8 text-center text-sm text-muted-foreground border-t border-border/40 mt-20">
-        <p>&copy; {new Date().getFullYear()} QadaTracker. May Allah accept your efforts.</p>
+        <p>&copy; {new Date().getFullYear()} {t.appName}. {t.footer}</p>
       </footer>
     </div>
   );

@@ -19,6 +19,7 @@ export function useSetupQada() {
 
   return useMutation({
     mutationFn: async (input: { missedStartDate: string; missedEndDate: string }) => {
+      const current = await getProgress();
       const start = new Date(input.missedStartDate);
       const end = new Date(input.missedEndDate);
       const diffDays = Math.max(0, differenceInDays(end, start));
@@ -32,13 +33,11 @@ export function useSetupQada() {
         asrCount: diffDays,
         maghribCount: diffDays,
         ishaCount: diffDays,
-        witrCount: diffDays,
-        fajrCompleted: 0,
-        dhuhrCompleted: 0,
-        asrCompleted: 0,
-        maghribCompleted: 0,
-        ishaCompleted: 0,
-        witrCompleted: 0,
+        fajrCompleted: current?.fajrCompleted || 0,
+        dhuhrCompleted: current?.dhuhrCompleted || 0,
+        asrCompleted: current?.asrCompleted || 0,
+        maghribCompleted: current?.maghribCompleted || 0,
+        ishaCompleted: current?.ishaCompleted || 0,
         updatedAt: new Date().toISOString(),
       };
 

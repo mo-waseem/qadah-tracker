@@ -45,7 +45,7 @@ export const api = {
       method: 'PATCH' as const,
       path: '/api/qada/counts' as const,
       input: z.object({
-        prayer: z.enum(['fajr', 'dhuhr', 'asr', 'maghrib', 'isha', 'witr']),
+        prayer: z.enum(['fajr', 'dhuhr', 'asr', 'maghrib', 'isha']),
         action: z.enum(['increment', 'decrement']),
       }),
       responses: {

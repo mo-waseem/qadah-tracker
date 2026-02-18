@@ -62,7 +62,6 @@ export async function registerRoutes(
         asrCount: diffDays,
         maghribCount: diffDays,
         ishaCount: diffDays,
-        witrCount: diffDays,
         // Completed counts default to 0 in schema
       };
 
