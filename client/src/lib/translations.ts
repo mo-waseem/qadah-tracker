@@ -4,8 +4,8 @@ export const translations = {
   en: {
     appName: "Qadah Tracker",
     subtitle: "Islamic Utility App",
-    heroTitle: "Reclaim Your Spiritual Debt",
-    heroDesc: "A simple, dignified way to calculate and track your missed prayers. Turn anxiety into action with a clear path forward.",
+    heroTitle: "Perform your Qadah more regularly and accurately.",
+    heroDesc: "A simple way to calculate and track your missed prayers. Turn anxiety into action with a clear path forward.",
     startBtn: "Start Tracking Now",
     smartCalc: "Smart Calculation",
     smartCalcDesc: "Input your dates and let us calculate exactly what you owe.",
@@ -56,8 +56,8 @@ export const translations = {
   ar: {
     appName: "متتبع القضاء",
     subtitle: "تطبيق إسلامي",
-    heroTitle: "استعد ديونك الروحية",
-    heroDesc: "طريقة بسيطة وكريمة لحساب وتتبع الصلوات الفائتة. حول القلق إلى عمل بمسار واضح للأمام.",
+    heroTitle: "اقض صلواتك بانتظام ودقة أكبر",
+    heroDesc: "طريقة بسيطة لحساب وتتبع الصلوات الفائتة. حول القلق إلى عمل بمسار واضح للأمام.",
     startBtn: "ابدأ التتبع الآن",
     smartCalc: "حساب ذكي",
     smartCalcDesc: "أدخل تواريخك ودعنا نحسب بالضبط ما عليك.",

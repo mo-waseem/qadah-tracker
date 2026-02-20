@@ -44,8 +44,7 @@ export default function Landing() {
               {t.subtitle}
             </span>
             <h1 className="text-5xl md:text-7xl font-bold font-display text-foreground tracking-tight leading-tight">
-              {t.heroTitle.split(t.appName).join('')}
-              <span className="text-primary">{language === 'en' ? 'Spiritual Debt' : 'ديونك الروحية'}</span>
+              {t.heroTitle}
             </h1>
             <p className="mt-6 text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
               {t.heroDesc}
