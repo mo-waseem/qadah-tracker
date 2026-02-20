@@ -4,7 +4,7 @@ date-fns | Date calculation for missed prayer estimation
 react-circular-progressbar | Circular progress indicators for prayer stats
 
 ## Notes
-Using Replit Auth for user management.
+Project is a standalone React app using IndexedDB for local storage.
 API endpoints:
 - GET /api/qada (Check if setup exists)
 - POST /api/qada (Setup initial dates)

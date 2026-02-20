@@ -39,3 +39,8 @@ export async function saveProgress(data: QadaData) {
   const db = await initDB();
   return db.put(STORE_NAME, { ...data, id: 1 });
 }
+
+export async function clearProgress() {
+  const db = await initDB();
+  return db.clear(STORE_NAME);
+}

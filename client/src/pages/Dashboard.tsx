@@ -1,6 +1,6 @@
 import { useQada, useUpdateQadaCount } from "@/hooks/use-qada";
 import { PrayerCard } from "@/components/PrayerCard";
-import { Sun, Moon, Sunrise, Sunset, CloudSun, Settings, Globe } from "lucide-react";
+import { Sun, Moon, Sunrise, Sunset, CloudSun, Settings, Globe, Info } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguageStore } from "@/hooks/use-language";
 import { translations } from "@/lib/translations";
@@ -29,12 +29,12 @@ export default function Dashboard() {
 
   if (!qada) return null;
 
-  const totalCompleted = 
-    qada.fajrCompleted + qada.dhuhrCompleted + qada.asrCompleted + 
+  const totalCompleted =
+    qada.fajrCompleted + qada.dhuhrCompleted + qada.asrCompleted +
     qada.maghribCompleted + qada.ishaCompleted;
 
-  const totalMissed = 
-    qada.fajrCount + qada.dhuhrCount + qada.asrCount + 
+  const totalMissed =
+    qada.fajrCount + qada.dhuhrCount + qada.asrCount +
     qada.maghribCount + qada.ishaCount;
 
   const handleUpdate = (prayer: typeof prayers[number]['id'], action: 'increment' | 'decrement') => {
@@ -60,7 +60,14 @@ export default function Dashboard() {
               <Globe className="w-4 h-4" />
               {language === 'en' ? 'العربية' : 'English'}
             </button>
-            <button 
+            <button
+              onClick={() => window.location.hash = '#info'}
+              className="p-2 rounded-full hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+              title={t.about}
+            >
+              <Info className="w-5 h-5" />
+            </button>
+            <button
               onClick={() => window.location.hash = '#setup'}
               className="p-2 rounded-full hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
               title={t.adjustDates}
@@ -73,13 +80,13 @@ export default function Dashboard() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {/* Summary Card */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-gradient-to-r from-primary to-emerald-700 rounded-3xl p-8 mb-10 text-white shadow-xl shadow-primary/20 relative overflow-hidden"
         >
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
-          
+
           <div className="relative z-10 flex flex-col md:flex-row justify-between items-end md:items-center gap-6">
             <div className={language === 'ar' ? 'text-right' : ''}>
               <p className="text-primary-foreground/80 font-medium mb-1">{t.totalProg}</p>
@@ -92,7 +99,7 @@ export default function Dashboard() {
           </div>
 
           <div className="mt-8 h-3 bg-black/20 rounded-full overflow-hidden">
-            <div 
+            <div
               className="h-full bg-white rounded-full transition-all duration-500 ease-out"
               style={{ width: `${(totalCompleted / totalMissed) * 100}%` }}
             />

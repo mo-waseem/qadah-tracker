@@ -6,7 +6,7 @@ import { translations } from "@/lib/translations";
 
 export default function Landing() {
   const { language, setLanguage } = useLanguageStore();
-  const t = translations[language];
+  const t = translations[language as 'en' | 'ar'];
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -58,7 +58,7 @@ export default function Landing() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4"
           >
-            <button 
+            <button
               onClick={() => window.location.hash = '#setup'}
               className="w-full sm:w-auto px-8 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-lg shadow-lg shadow-primary/25 hover:shadow-xl hover:translate-y-[-2px] active:translate-y-0 transition-all flex items-center justify-center gap-2"
             >
@@ -103,11 +103,67 @@ export default function Landing() {
             </motion.div>
           ))}
         </div>
+
+        {/* Jurisprudence Section */}
+        <div className="max-w-7xl mx-auto mt-32 px-4 w-full">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold font-display mb-4">{t.rulingTitle}</h2>
+            <p className="text-muted-foreground">{t.rulingScholars}</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="p-8 rounded-3xl bg-emerald-500/5 border border-emerald-500/10"
+            >
+              <h4 className="text-lg font-bold mb-3 text-emerald-600 dark:text-emerald-400">{t.malikiHanbali}</h4>
+              <p className="text-sm leading-relaxed text-muted-foreground">{t.malikiHanbaliDesc}</p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="p-8 rounded-3xl bg-indigo-500/5 border border-indigo-500/10"
+            >
+              <h4 className="text-lg font-bold mb-3 text-indigo-600 dark:text-indigo-400">{t.shafii}</h4>
+              <p className="text-sm leading-relaxed text-muted-foreground">{t.shafiiDesc}</p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="p-8 rounded-3xl bg-amber-500/5 border border-amber-500/10"
+            >
+              <h4 className="text-lg font-bold mb-3 text-amber-600 dark:text-amber-400">{t.hanafi}</h4>
+              <p className="text-sm leading-relaxed text-muted-foreground">{t.hanafiDesc}</p>
+            </motion.div>
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            className="mt-12 p-8 rounded-3xl bg-primary text-primary-foreground shadow-xl shadow-primary/20 relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+            <h4 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <CheckCircle2 className="w-6 h-6" />
+              {t.practicalGuidance}
+            </h4>
+            <p className="text-lg leading-relaxed opacity-90 max-w-3xl">
+              {t.guidanceDesc}
+            </p>
+          </motion.div>
+        </div>
       </main>
 
       <footer className="py-8 text-center text-sm text-muted-foreground border-t border-border/40 mt-20">
         <p>&copy; {new Date().getFullYear()} {t.appName}. {t.footer}</p>
       </footer>
-    </div>
+    </div >
   );
 }

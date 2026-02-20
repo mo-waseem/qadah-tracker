@@ -1,5 +1,3 @@
-import { db } from "./db";
-import { eq, sql } from "drizzle-orm";
 import {
   qadaProgress,
   type QadaProgress,
@@ -12,20 +10,32 @@ export interface IStorage {
   updateQadaCount(userId: string, prayer: string, increment: boolean): Promise<QadaProgress | undefined>;
 }
 
-export class DatabaseStorage implements IStorage {
+export class MemStorage implements IStorage {
+  private progress: Map<string, QadaProgress>;
+  private currentId: number;
+
+  constructor() {
+    this.progress = new Map();
+    this.currentId = 1;
+  }
+
   async getQadaProgress(userId: string): Promise<QadaProgress | undefined> {
-    const [progress] = await db
-      .select()
-      .from(qadaProgress)
-      .where(eq(qadaProgress.userId, userId));
-    return progress;
+    return this.progress.get(userId);
   }
 
   async createQadaProgress(progress: InsertQadaProgress): Promise<QadaProgress> {
-    const [newProgress] = await db
-      .insert(qadaProgress)
-      .values(progress)
-      .returning();
+    const id = this.currentId++;
+    const newProgress: QadaProgress = {
+      ...progress,
+      id,
+      fajrCompleted: 0,
+      dhuhrCompleted: 0,
+      asrCompleted: 0,
+      maghribCompleted: 0,
+      ishaCompleted: 0,
+      updatedAt: new Date(),
+    };
+    this.progress.set(progress.userId, newProgress);
     return newProgress;
   }
 
@@ -34,10 +44,10 @@ export class DatabaseStorage implements IStorage {
     prayer: string,
     increment: boolean,
   ): Promise<QadaProgress | undefined> {
-    // Determine the column to update
-    let columnKey: keyof typeof qadaProgress.$inferSelect;
-    
-    // Map prayer name to completed column key
+    const progress = this.progress.get(userId);
+    if (!progress) return undefined;
+
+    let columnKey: keyof QadaProgress;
     switch (prayer) {
       case 'fajr': columnKey = 'fajrCompleted'; break;
       case 'dhuhr': columnKey = 'dhuhrCompleted'; break;
@@ -47,17 +57,15 @@ export class DatabaseStorage implements IStorage {
       default: throw new Error(`Invalid prayer: ${prayer}`);
     }
 
-    const column = qadaProgress[columnKey];
-    const operator = increment ? sql`${column} + 1` : sql`${column} - 1`;
-
-    const [updated] = await db
-      .update(qadaProgress)
-      .set({ [columnKey]: operator, updatedAt: new Date() })
-      .where(eq(qadaProgress.userId, userId))
-      .returning();
-      
+    const value = progress[columnKey] as number;
+    const updated = {
+      ...progress,
+      [columnKey]: increment ? value + 1 : value - 1,
+      updatedAt: new Date(),
+    };
+    this.progress.set(userId, updated);
     return updated;
   }
 }
 
-export const storage = new DatabaseStorage();
+export const storage = new MemStorage();

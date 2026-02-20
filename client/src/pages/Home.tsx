@@ -6,10 +6,15 @@ import Landing from "./Landing";
 
 export default function Home() {
   const { data: qada, isLoading: qadaLoading } = useQada();
-  const [showSetup, setShowSetup] = useState(false);
+  const [route, setRoute] = useState<'default' | 'setup' | 'info'>('default');
 
   useEffect(() => {
-    const handleHash = () => setShowSetup(window.location.hash === '#setup');
+    const handleHash = () => {
+      const hash = window.location.hash;
+      if (hash === '#setup') setRoute('setup');
+      else if (hash === '#info') setRoute('info');
+      else setRoute('default');
+    };
     window.addEventListener('hashchange', handleHash);
     handleHash();
     return () => window.removeEventListener('hashchange', handleHash);
@@ -26,8 +31,16 @@ export default function Home() {
     );
   }
 
+  if (route === 'setup') {
+    return <Setup />;
+  }
+
+  if (route === 'info') {
+    return <Landing />;
+  }
+
   if (!qada) {
-    return showSetup ? <Setup /> : <Landing />;
+    return <Landing />;
   }
 
   return <Dashboard />;

@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getProgress, saveProgress, type QadaData } from "@/lib/idb";
 import { useToast } from "@/hooks/use-toast";
 import { differenceInDays } from "date-fns";
+import { useLanguageStore } from "@/hooks/use-language";
+import { translations } from "@/lib/translations";
 
 export function useQada() {
   return useQuery<QadaData | null>({
@@ -16,6 +18,8 @@ export function useQada() {
 export function useSetupQada() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { language } = useLanguageStore();
+  const t = translations[language as 'en' | 'ar'];
 
   return useMutation({
     mutationFn: async (input: { missedStartDate: string; missedEndDate: string }) => {
@@ -48,8 +52,8 @@ export function useSetupQada() {
       queryClient.invalidateQueries({ queryKey: ["qada-progress"] });
       window.location.hash = ''; // Return to dashboard
       toast({
-        title: "Setup Complete",
-        description: "Your missed prayer tracking has started.",
+        title: t.setupSuccess,
+        description: t.setupSuccessDesc,
       });
     },
   });
@@ -58,6 +62,8 @@ export function useSetupQada() {
 export function useUpdateQadaCount() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { language } = useLanguageStore();
+  const t = translations[language as 'en' | 'ar'];
 
   return useMutation({
     mutationFn: async (data: { prayer: string; action: 'increment' | 'decrement' }) => {
@@ -99,8 +105,8 @@ export function useUpdateQadaCount() {
         queryClient.setQueryData(["qada-progress"], context.previousData);
       }
       toast({
-        title: "Update Failed",
-        description: "Could not save your progress.",
+        title: t.updateFailed,
+        description: t.updateFailedDesc,
         variant: "destructive",
       });
     },
@@ -108,4 +114,60 @@ export function useUpdateQadaCount() {
       queryClient.invalidateQueries({ queryKey: ["qada-progress"] });
     },
   });
+}
+
+export function useImportExport() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { language } = useLanguageStore();
+  const t = translations[language as 'en' | 'ar'];
+
+  const exportData = async () => {
+    try {
+      const data = await getProgress();
+      if (!data) return;
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${t.exportFilename}-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export failed:', err);
+    }
+  };
+
+  const importData = async (file: File) => {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      // Basic validation
+      if (!data.missedStartDate || !data.missedEndDate || typeof data.fajrCount !== 'number') {
+        throw new Error("Invalid format");
+      }
+
+      await saveProgress(data);
+      queryClient.setQueryData(["qada-progress"], data);
+      await queryClient.invalidateQueries({ queryKey: ["qada-progress"] });
+
+      toast({
+        title: t.importSuccess,
+      });
+
+      return true;
+    } catch (err) {
+      toast({
+        title: t.importError,
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  return { exportData, importData };
 }
