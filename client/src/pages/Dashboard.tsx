@@ -1,8 +1,8 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQada, useUpdateQadaCount, useImportExport } from "@/hooks/use-qada";
 import { PrayerCard } from "@/components/PrayerCard";
-import { Sun, Moon, Sunrise, Sunset, CloudSun, Settings, Globe, Info, Download, Upload, FileJson } from "lucide-react";
-import { motion } from "framer-motion";
+import { Sun, Moon, Sunrise, Sunset, CloudSun, Settings, Globe, Info, Download, Upload, FileJson, Share, Smartphone } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useLanguageStore } from "@/hooks/use-language";
 import { translations } from "@/lib/translations";
 import {
@@ -15,6 +15,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { type QadaData } from "@/lib/idb";
 
 const prayers = [
@@ -35,6 +43,49 @@ export default function Dashboard() {
   const [pendingImport, setPendingImport] = useState<QadaData | null>(null);
   const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // PWA Install logic
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallBtn, setShowInstallBtn] = useState(false);
+  const [isIOSModalOpen, setIsIOSModalOpen] = useState(false);
+
+  useEffect(() => {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
+
+    if (isIOS && !isStandalone) {
+      setShowInstallBtn(true);
+    }
+
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallBtn(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
+
+  const handleInstallClick = async () => {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+
+    if (isIOS) {
+      setIsIOSModalOpen(true);
+      return;
+    }
+
+    if (!deferredPrompt) return;
+
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+      setShowInstallBtn(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -94,7 +145,22 @@ export default function Dashboard() {
             </div>
             <span className="font-bold font-display tracking-tight">{t.appName}</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
+            <AnimatePresence>
+              {showInstallBtn && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  onClick={handleInstallClick}
+                  className="p-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                  title={t.installApp}
+                >
+                  <Smartphone className="w-5 h-5" />
+                </motion.button>
+              )}
+            </AnimatePresence>
+
             <button
               onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
               className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-accent transition-colors text-sm font-medium"
@@ -274,6 +340,44 @@ export default function Dashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={isIOSModalOpen} onOpenChange={setIsIOSModalOpen}>
+        <DialogContent className="rounded-2xl max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Smartphone className="w-5 h-5 text-primary" />
+              {t.iosInstallTitle}
+            </DialogTitle>
+            <DialogDescription>
+              {t.installDesc}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4 text-sm">
+            <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-xl">
+              <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                <Share className="w-5 h-5" />
+              </div>
+              <p className="font-medium pt-1">{t.iosInstallStep1}</p>
+            </div>
+            <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-xl">
+              <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                <Upload className="w-5 h-5" />
+              </div>
+              <p className="font-medium pt-1">{t.iosInstallStep2}</p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <button
+              onClick={() => setIsIOSModalOpen(false)}
+              className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold transition-all hover:bg-primary/90"
+            >
+              {t.close}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

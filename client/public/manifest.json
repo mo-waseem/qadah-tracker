@@ -1,0 +1,17 @@
+{
+    "name": "Qadah Tracker",
+    "short_name": "Qadah",
+    "description": "Calculate and track your missed prayers with ease.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#f8faf9",
+    "theme_color": "#2d7a5e",
+    "icons": [
+        {
+            "src": "/favicon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
+        }
+    ]
+}
