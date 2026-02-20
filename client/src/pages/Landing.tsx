@@ -1,12 +1,36 @@
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { ArrowRight, Moon, Sun, CheckCircle2, Globe } from "lucide-react";
+import { ArrowRight, Moon, Sun, CheckCircle2, Globe, Download } from "lucide-react";
 import { useLanguageStore } from "@/hooks/use-language";
 import { translations } from "@/lib/translations";
+import { useEffect, useState } from "react";
 
 export default function Landing() {
   const { language, setLanguage } = useLanguageStore();
   const t = translations[language as 'en' | 'ar'];
+
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [canInstall, setCanInstall] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setCanInstall(true);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setCanInstall(false);
+      setDeferredPrompt(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -64,6 +88,15 @@ export default function Landing() {
               {t.startBtn}
               <ArrowRight className={`w-5 h-5 ${language === 'ar' ? 'rotate-180' : ''}`} />
             </button>
+            {canInstall && (
+              <button
+                onClick={handleInstall}
+                className="w-full sm:w-auto px-8 py-4 rounded-xl border border-primary/30 text-primary font-semibold text-lg hover:bg-primary/5 hover:translate-y-[-2px] active:translate-y-0 transition-all flex items-center justify-center gap-2"
+              >
+                <Download className="w-5 h-5" />
+                {t.installApp}
+              </button>
+            )}
           </motion.div>
         </div>
 
