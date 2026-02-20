@@ -9,6 +9,8 @@ import { useSetupQada, useQada, useImportExport } from "@/hooks/use-qada";
 import { useLanguageStore } from "@/hooks/use-language";
 import { translations } from "@/lib/translations";
 
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 const setupSchema = z.object({
   startDate: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date"),
   endDate: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date"),
@@ -56,7 +58,7 @@ export default function Setup() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 sm:p-6">
-      <div className="absolute top-6 right-6">
+      <div className="absolute top-6 right-6 flex items-center gap-2">
         <button
           onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
           className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-accent transition-colors text-sm font-medium"
@@ -153,41 +155,6 @@ export default function Setup() {
             {!isPending && <ArrowRight className={`w-5 h-5 ${language === 'ar' ? 'rotate-180' : ''}`} />}
           </button>
         </form>
-
-        <div className="mt-12 pt-8 border-t border-border">
-          <h2 className="text-xl font-bold font-display mb-6 flex items-center gap-2">
-            <Settings className="w-5 h-5 text-muted-foreground" />
-            {t.dataManagement}
-          </h2>
-          <div className="grid grid-cols-2 gap-4">
-            <button
-              onClick={() => exportData()}
-              className="flex items-center justify-center gap-2 p-4 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all font-medium"
-            >
-              <Download className="w-5 h-5" />
-              {t.exportData}
-            </button>
-            <div className="relative">
-              <input
-                type="file"
-                accept=".json"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    await importData(file);
-                  }
-                }}
-                className="absolute inset-0 opacity-0 cursor-pointer"
-              />
-              <button
-                className="w-full flex items-center justify-center gap-2 p-4 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all font-medium"
-              >
-                <Upload className="w-5 h-5" />
-                {t.importData}
-              </button>
-            </div>
-          </div>
-        </div>
       </motion.div>
     </div>
   );

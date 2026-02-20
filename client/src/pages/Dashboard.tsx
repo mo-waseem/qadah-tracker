@@ -1,9 +1,21 @@
-import { useQada, useUpdateQadaCount } from "@/hooks/use-qada";
+import { useState, useRef } from "react";
+import { useQada, useUpdateQadaCount, useImportExport } from "@/hooks/use-qada";
 import { PrayerCard } from "@/components/PrayerCard";
-import { Sun, Moon, Sunrise, Sunset, CloudSun, Settings, Globe, Info } from "lucide-react";
+import { Sun, Moon, Sunrise, Sunset, CloudSun, Settings, Globe, Info, Download, Upload, FileJson } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguageStore } from "@/hooks/use-language";
 import { translations } from "@/lib/translations";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { type QadaData } from "@/lib/idb";
 
 const prayers = [
   { id: 'fajr', name: 'Fajr', arabic: 'الفجر', icon: <Sunrise />, color: 'bg-emerald-500' },
@@ -16,8 +28,13 @@ const prayers = [
 export default function Dashboard() {
   const { data: qada, isLoading } = useQada();
   const updateMutation = useUpdateQadaCount();
+  const { exportData, importData } = useImportExport();
   const { language, setLanguage } = useLanguageStore();
   const t = translations[language];
+
+  const [pendingImport, setPendingImport] = useState<QadaData | null>(null);
+  const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (isLoading) {
     return (
@@ -41,6 +58,31 @@ export default function Dashboard() {
     updateMutation.mutate({ prayer, action });
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text) as QadaData;
+        if (data.missedStartDate && data.missedEndDate) {
+          setPendingImport(data);
+          setIsImportAlertOpen(true);
+        }
+      } catch (err) {
+        console.error("Invalid file", err);
+      }
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    if (pendingImport && fileInputRef.current?.files?.[0]) {
+      await importData(fileInputRef.current.files[0]);
+      setIsImportAlertOpen(false);
+      setPendingImport(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
@@ -55,11 +97,37 @@ export default function Dashboard() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-accent transition-colors text-sm font-medium"
+              className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-accent transition-colors text-sm font-medium"
             >
               <Globe className="w-4 h-4" />
-              {language === 'en' ? 'العربية' : 'English'}
+              <span className="hidden sm:inline">{language === 'en' ? 'العربية' : 'English'}</span>
             </button>
+
+            <button
+              onClick={() => exportData()}
+              className="p-2 rounded-full hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+              title={t.exportData}
+            >
+              <Download className="w-5 h-5" />
+            </button>
+
+            <div className="relative">
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept=".json"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="p-2 rounded-full hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+                title={t.importData}
+              >
+                <Upload className="w-5 h-5" />
+              </button>
+            </div>
+
             <button
               onClick={() => window.location.hash = '#info'}
               className="p-2 rounded-full hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
@@ -106,6 +174,29 @@ export default function Dashboard() {
           </div>
         </motion.div>
 
+        {/* Spiritual Hadith */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.2 }}
+          className="mb-12 text-center space-y-3"
+        >
+          {language === 'ar' ? (
+            <>
+              <p className="text-sm md:text-base font-medium text-muted-foreground italic">
+                قال صلى الله عليه وسلم:
+              </p>
+              <h3 className="text-2xl md:text-4xl font-display text-primary leading-relaxed px-4 py-2 bg-primary/5 rounded-2xl inline-block border-x-4 border-primary/20">
+                فليصلّها إذا ذكرها
+              </h3>
+            </>
+          ) : (
+            <p className="text-sm md:text-base font-medium text-muted-foreground italic border-x-2 border-primary/20 px-4 inline-block">
+              {t.hadith}
+            </p>
+          )}
+        </motion.div>
+
         {/* Prayer Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {prayers.map((prayer, index) => (
@@ -132,6 +223,57 @@ export default function Dashboard() {
           ))}
         </div>
       </main>
+
+      <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
+        <AlertDialogContent className="rounded-2xl max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <FileJson className="w-5 h-5 text-primary" />
+              {t.confirmImport}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t.confirmImportDesc}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {pendingImport && (
+            <div className={`space-y-3 py-4 border-y border-border my-2 ${language === 'ar' ? 'text-right' : ''}`}>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground font-medium">{t.missedRange}:</span>
+                <span className="font-bold">{pendingImport.missedStartDate} - {pendingImport.missedEndDate}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground font-medium">{t.totalCompleted}:</span>
+                <span className="font-bold">
+                  {(
+                    pendingImport.fajrCompleted +
+                    pendingImport.dhuhrCompleted +
+                    pendingImport.asrCompleted +
+                    pendingImport.maghribCompleted +
+                    pendingImport.ishaCompleted
+                  ).toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground font-medium">{t.lastUpdated}:</span>
+                <span className="font-bold">{new Date(pendingImport.updatedAt).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}</span>
+              </div>
+            </div>
+          )}
+
+          <AlertDialogFooter className="flex-row gap-2 sm:gap-0">
+            <AlertDialogCancel className="w-full sm:w-auto rounded-xl">
+              {t.cancel}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmImport}
+              className="w-full sm:w-auto bg-primary hover:bg-primary/90 rounded-xl"
+            >
+              {t.confirm}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
