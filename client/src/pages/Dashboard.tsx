@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { useQada, useUpdateQadaCount, useSetQadaCount, useImportExport } from "@/hooks/use-qada";
+import { useQada, useUpdateQadaCount, useSetQadaCount, useDeleteRange, useImportExport, aggregateRanges } from "@/hooks/use-qada";
 import { PrayerCard } from "@/components/PrayerCard";
-import { Sun, Moon, Sunrise, Sunset, CloudSun, Settings, Globe, Info, Download, Upload, FileJson, Share, Smartphone } from "lucide-react";
+import { Sun, Moon, Sunrise, Sunset, CloudSun, Settings, Globe, Info, Download, Upload, FileJson, Share, Smartphone, Plus, Trash2, CalendarRange } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguageStore } from "@/hooks/use-language";
 import { translations } from "@/lib/translations";
@@ -23,7 +23,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { type QadaData } from "@/lib/idb";
+import { type QadaStore } from "@/lib/idb";
 
 const prayers = [
   { id: 'fajr', name: 'Fajr', arabic: 'الفجر', icon: <Sunrise />, color: 'bg-emerald-500' },
@@ -34,15 +34,17 @@ const prayers = [
 ] as const;
 
 export default function Dashboard() {
-  const { data: qada, isLoading } = useQada();
+  const { data: store, isLoading } = useQada();
   const updateMutation = useUpdateQadaCount();
   const setCountMutation = useSetQadaCount();
+  const deleteMutation = useDeleteRange();
   const { exportData, importData } = useImportExport();
   const { language, setLanguage } = useLanguageStore();
   const t = translations[language];
 
-  const [pendingImport, setPendingImport] = useState<QadaData | null>(null);
+  const [pendingImport, setPendingImport] = useState<QadaStore | null>(null);
   const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
+  const [deleteRangeIndex, setDeleteRangeIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // PWA Install logic
@@ -96,22 +98,36 @@ export default function Dashboard() {
     );
   }
 
-  if (!qada) return null;
+  if (!store || store.ranges.length === 0) return null;
+
+  const agg = aggregateRanges(store.ranges);
+  const lastRangeIndex = store.ranges.length - 1;
 
   const totalCompleted =
-    qada.fajrCompleted + qada.dhuhrCompleted + qada.asrCompleted +
-    qada.maghribCompleted + qada.ishaCompleted;
+    agg.fajrCompleted + agg.dhuhrCompleted + agg.asrCompleted +
+    agg.maghribCompleted + agg.ishaCompleted;
 
   const totalMissed =
-    qada.fajrCount + qada.dhuhrCount + qada.asrCount +
-    qada.maghribCount + qada.ishaCount;
+    agg.fajrCount + agg.dhuhrCount + agg.asrCount +
+    agg.maghribCount + agg.ishaCount;
 
   const handleUpdate = (prayer: typeof prayers[number]['id'], action: 'increment' | 'decrement') => {
-    updateMutation.mutate({ prayer, action });
+    updateMutation.mutate({ prayer, action, rangeIndex: lastRangeIndex });
   };
 
   const handleSetCount = (prayer: typeof prayers[number]['id'], count: number) => {
-    setCountMutation.mutate({ prayer, count });
+    setCountMutation.mutate({ prayer, count, rangeIndex: lastRangeIndex });
+  };
+
+  const handleDeleteRange = (index: number) => {
+    setDeleteRangeIndex(index);
+  };
+
+  const confirmDeleteRange = () => {
+    if (deleteRangeIndex !== null) {
+      deleteMutation.mutate(deleteRangeIndex);
+      setDeleteRangeIndex(null);
+    }
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -119,8 +135,9 @@ export default function Dashboard() {
     if (file) {
       try {
         const text = await file.text();
-        const data = JSON.parse(text) as QadaData;
-        if (data.missedStartDate && data.missedEndDate) {
+        const data = JSON.parse(text);
+        // Accept both old and new formats for preview
+        if ((data.missedStartDate && data.missedEndDate) || (data.ranges && Array.isArray(data.ranges))) {
           setPendingImport(data);
           setIsImportAlertOpen(true);
         }
@@ -206,13 +223,6 @@ export default function Dashboard() {
             >
               <Info className="w-5 h-5" />
             </button>
-            <button
-              onClick={() => window.location.hash = '#setup'}
-              className="p-2 rounded-full hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-              title={t.adjustDates}
-            >
-              <Settings className="w-5 h-5" />
-            </button>
           </div>
         </div>
       </header>
@@ -240,7 +250,7 @@ export default function Dashboard() {
           <div className="mt-8 h-3 bg-black/20 rounded-full overflow-hidden">
             <div
               className="h-full bg-white rounded-full transition-all duration-500 ease-out"
-              style={{ width: `${(totalCompleted / totalMissed) * 100}%` }}
+              style={{ width: `${totalMissed > 0 ? (totalCompleted / totalMissed) * 100 : 0}%` }}
             />
           </div>
         </motion.div>
@@ -283,9 +293,9 @@ export default function Dashboard() {
                 icon={prayer.icon}
                 color={prayer.color}
                 // @ts-ignore - dynamic key access
-                total={qada[`${prayer.id}Count`]}
+                total={agg[`${prayer.id}Count`]}
                 // @ts-ignore - dynamic key access
-                completed={qada[`${prayer.id}Completed`]}
+                completed={agg[`${prayer.id}Completed`]}
                 onIncrement={() => handleUpdate(prayer.id, 'increment')}
                 onDecrement={() => handleUpdate(prayer.id, 'decrement')}
                 onSetCount={(count) => handleSetCount(prayer.id, count)}
@@ -294,8 +304,105 @@ export default function Dashboard() {
             </motion.div>
           ))}
         </div>
+
+        {/* Ranges Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="mt-12"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold font-display flex items-center gap-2">
+              <CalendarRange className="w-5 h-5 text-primary" />
+              {t.ranges}
+            </h3>
+            <button
+              onClick={() => window.location.hash = '#setup'}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/10 text-primary font-medium hover:bg-primary/20 transition-colors text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              {t.addRange}
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {store.ranges.map((range, index) => {
+              const rangeCompleted = range.fajrCompleted + range.dhuhrCompleted + range.asrCompleted + range.maghribCompleted + range.ishaCompleted;
+              const rangeTotal = range.fajrCount + range.dhuhrCount + range.asrCount + range.maghribCount + range.ishaCount;
+              const rangePercent = rangeTotal > 0 ? Math.round((rangeCompleted / rangeTotal) * 100) : 0;
+
+              return (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="bg-card border border-border/50 rounded-2xl p-5 flex items-center justify-between gap-4 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                        #{index + 1}
+                      </span>
+                      <span className="text-sm font-medium text-foreground truncate">
+                        {range.missedStartDate} → {range.missedEndDate}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary rounded-full transition-all duration-500"
+                          style={{ width: `${rangePercent}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-bold text-muted-foreground whitespace-nowrap">
+                        {rangeCompleted.toLocaleString()} / {rangeTotal.toLocaleString()} ({rangePercent}%)
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => handleDeleteRange(index)}
+                    className="p-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                    title={t.deleteRange}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </motion.div>
+              );
+            })}
+          </div>
+        </motion.div>
       </main>
 
+      {/* Delete Range Confirmation */}
+      <AlertDialog open={deleteRangeIndex !== null} onOpenChange={(open) => !open && setDeleteRangeIndex(null)}>
+        <AlertDialogContent className="rounded-2xl max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-destructive" />
+              {t.deleteRange}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t.deleteRangeDesc}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row gap-2 sm:gap-0">
+            <AlertDialogCancel className="w-full sm:w-auto rounded-xl">
+              {t.cancel}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteRange}
+              className="w-full sm:w-auto bg-destructive hover:bg-destructive/90 rounded-xl"
+            >
+              {t.deleteRange}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Import Confirmation */}
       <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
         <AlertDialogContent className="rounded-2xl max-w-md">
           <AlertDialogHeader>
@@ -307,31 +414,6 @@ export default function Dashboard() {
               {t.confirmImportDesc}
             </AlertDialogDescription>
           </AlertDialogHeader>
-
-          {pendingImport && (
-            <div className={`space-y-3 py-4 border-y border-border my-2 ${language === 'ar' ? 'text-right' : ''}`}>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground font-medium">{t.missedRange}:</span>
-                <span className="font-bold">{pendingImport.missedStartDate} - {pendingImport.missedEndDate}</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground font-medium">{t.totalCompleted}:</span>
-                <span className="font-bold">
-                  {(
-                    pendingImport.fajrCompleted +
-                    pendingImport.dhuhrCompleted +
-                    pendingImport.asrCompleted +
-                    pendingImport.maghribCompleted +
-                    pendingImport.ishaCompleted
-                  ).toLocaleString()}
-                </span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground font-medium">{t.lastUpdated}:</span>
-                <span className="font-bold">{new Date(pendingImport.updatedAt).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}</span>
-              </div>
-            </div>
-          )}
 
           <AlertDialogFooter className="flex-row gap-2 sm:gap-0">
             <AlertDialogCancel className="w-full sm:w-auto rounded-xl">

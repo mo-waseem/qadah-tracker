@@ -4,10 +4,13 @@ import { ArrowRight, Moon, Sun, CheckCircle2, Globe, Download } from "lucide-rea
 import { useLanguageStore } from "@/hooks/use-language";
 import { translations } from "@/lib/translations";
 import { useEffect, useState } from "react";
+import { useQada } from "@/hooks/use-qada";
 
 export default function Landing() {
   const { language, setLanguage } = useLanguageStore();
   const t = translations[language as 'en' | 'ar'];
+  const { data: store } = useQada();
+  const hasRanges = store && store.ranges.length > 0;
 
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [canInstall, setCanInstall] = useState(false);
@@ -82,7 +85,7 @@ export default function Landing() {
             className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4"
           >
             <button
-              onClick={() => window.location.hash = '#setup'}
+              onClick={() => { window.location.hash = hasRanges ? '' : '#setup'; }}
               className="w-full sm:w-auto px-8 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-lg shadow-lg shadow-primary/25 hover:shadow-xl hover:translate-y-[-2px] active:translate-y-0 transition-all flex items-center justify-center gap-2"
             >
               {t.startBtn}

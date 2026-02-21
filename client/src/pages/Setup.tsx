@@ -4,12 +4,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion } from "framer-motion";
 import { differenceInDays } from "date-fns";
-import { Calendar, ArrowRight, Calculator, Globe, Download, Upload, Settings, Info } from "lucide-react";
-import { useSetupQada, useQada, useImportExport } from "@/hooks/use-qada";
+import { Calendar, ArrowRight, Calculator, Globe, Info } from "lucide-react";
+import { useSetupQada, useQada } from "@/hooks/use-qada";
 import { useLanguageStore } from "@/hooks/use-language";
 import { translations } from "@/lib/translations";
-
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const setupSchema = z.object({
   startDate: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date"),
@@ -22,25 +20,16 @@ const setupSchema = z.object({
 type SetupForm = z.infer<typeof setupSchema>;
 
 export default function Setup() {
-  const [step, setStep] = useState<1 | 2>(1);
-  const { data: currentProgress } = useQada();
+  const { data: store } = useQada();
   const { mutate: setup, isPending } = useSetupQada();
-  const { exportData, importData } = useImportExport();
   const { language, setLanguage } = useLanguageStore();
   const t = translations[language as 'en' | 'ar'];
+
+  const hasExistingRanges = store && store.ranges.length > 0;
 
   const form = useForm<SetupForm>({
     resolver: zodResolver(setupSchema),
   });
-
-  useEffect(() => {
-    if (currentProgress) {
-      form.reset({
-        startDate: currentProgress.missedStartDate,
-        endDate: currentProgress.missedEndDate,
-      });
-    }
-  }, [currentProgress, form]);
 
   const onSubmit = (data: SetupForm) => {
     setup({
@@ -87,8 +76,12 @@ export default function Setup() {
           <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-6 text-primary">
             <Calculator className="w-8 h-8" />
           </div>
-          <h1 className="text-3xl font-bold font-display mb-2">{t.setupTitle}</h1>
-          <p className="text-muted-foreground">{t.setupDesc}</p>
+          <h1 className="text-3xl font-bold font-display mb-2">
+            {hasExistingRanges ? t.addRange : t.setupTitle}
+          </h1>
+          <p className="text-muted-foreground">
+            {hasExistingRanges ? t.addRangeDesc : t.setupDesc}
+          </p>
         </div>
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
@@ -146,14 +139,25 @@ export default function Setup() {
             </motion.div>
           )}
 
-          <button
-            type="submit"
-            disabled={isPending || estimatedDays <= 0}
-            className="w-full py-4 rounded-xl bg-primary text-primary-foreground font-bold text-lg shadow-lg shadow-primary/25 hover:shadow-xl hover:translate-y-[-2px] active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-          >
-            {isPending ? t.calculating : t.createPlan}
-            {!isPending && <ArrowRight className={`w-5 h-5 ${language === 'ar' ? 'rotate-180' : ''}`} />}
-          </button>
+          <div className="flex gap-3">
+            {hasExistingRanges && (
+              <button
+                type="button"
+                onClick={() => window.location.hash = ''}
+                className="px-6 py-4 rounded-xl border border-border text-muted-foreground font-bold text-lg hover:bg-accent/50 transition-all"
+              >
+                {t.cancel}
+              </button>
+            )}
+            <button
+              type="submit"
+              disabled={isPending || estimatedDays <= 0}
+              className="flex-1 py-4 rounded-xl bg-primary text-primary-foreground font-bold text-lg shadow-lg shadow-primary/25 hover:shadow-xl hover:translate-y-[-2px] active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+            >
+              {isPending ? t.calculating : (hasExistingRanges ? t.addRange : t.createPlan)}
+              {!isPending && <ArrowRight className={`w-5 h-5 ${language === 'ar' ? 'rotate-180' : ''}`} />}
+            </button>
+          </div>
         </form>
       </motion.div>
     </div>

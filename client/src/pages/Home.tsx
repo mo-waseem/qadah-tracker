@@ -5,7 +5,7 @@ import Setup from "./Setup";
 import Landing from "./Landing";
 
 export default function Home() {
-  const { data: qada, isLoading: qadaLoading } = useQada();
+  const { data: store, isLoading: qadaLoading } = useQada();
   const [route, setRoute] = useState<'default' | 'setup' | 'info'>('default');
 
   useEffect(() => {
@@ -39,9 +39,10 @@ export default function Home() {
     return <Landing />;
   }
 
-  if (!qada) {
+  if (!store || store.ranges.length === 0) {
     return <Landing />;
   }
 
   return <Dashboard />;
 }
+

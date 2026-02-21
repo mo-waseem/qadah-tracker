@@ -1,12 +1,50 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getProgress, saveProgress, type QadaData } from "@/lib/idb";
+import { getProgress, saveProgress, type QadaStore, type QadaRange, type QadaData, legacyToRange } from "@/lib/idb";
 import { useToast } from "@/hooks/use-toast";
 import { differenceInDays } from "date-fns";
 import { useLanguageStore } from "@/hooks/use-language";
 import { translations } from "@/lib/translations";
 
+// ─── Aggregation helpers ────────────────────────────────────────────
+
+export interface AggregatedQada {
+  fajrCount: number;
+  dhuhrCount: number;
+  asrCount: number;
+  maghribCount: number;
+  ishaCount: number;
+  fajrCompleted: number;
+  dhuhrCompleted: number;
+  asrCompleted: number;
+  maghribCompleted: number;
+  ishaCompleted: number;
+}
+
+export function aggregateRanges(ranges: QadaRange[]): AggregatedQada {
+  return ranges.reduce<AggregatedQada>(
+    (acc, r) => ({
+      fajrCount: acc.fajrCount + r.fajrCount,
+      dhuhrCount: acc.dhuhrCount + r.dhuhrCount,
+      asrCount: acc.asrCount + r.asrCount,
+      maghribCount: acc.maghribCount + r.maghribCount,
+      ishaCount: acc.ishaCount + r.ishaCount,
+      fajrCompleted: acc.fajrCompleted + r.fajrCompleted,
+      dhuhrCompleted: acc.dhuhrCompleted + r.dhuhrCompleted,
+      asrCompleted: acc.asrCompleted + r.asrCompleted,
+      maghribCompleted: acc.maghribCompleted + r.maghribCompleted,
+      ishaCompleted: acc.ishaCompleted + r.ishaCompleted,
+    }),
+    {
+      fajrCount: 0, dhuhrCount: 0, asrCount: 0, maghribCount: 0, ishaCount: 0,
+      fajrCompleted: 0, dhuhrCompleted: 0, asrCompleted: 0, maghribCompleted: 0, ishaCompleted: 0,
+    },
+  );
+}
+
+// ─── Hooks ──────────────────────────────────────────────────────────
+
 export function useQada() {
-  return useQuery<QadaData | null>({
+  return useQuery<QadaStore | null>({
     queryKey: ["qada-progress"],
     queryFn: async () => {
       const data = await getProgress();
@@ -28,8 +66,7 @@ export function useSetupQada() {
       const end = new Date(input.missedEndDate);
       const diffDays = Math.max(0, differenceInDays(end, start));
 
-      const newData: QadaData = {
-        id: 1,
+      const newRange: QadaRange = {
         missedStartDate: input.missedStartDate,
         missedEndDate: input.missedEndDate,
         fajrCount: diffDays,
@@ -37,20 +74,25 @@ export function useSetupQada() {
         asrCount: diffDays,
         maghribCount: diffDays,
         ishaCount: diffDays,
-        fajrCompleted: current?.fajrCompleted || 0,
-        dhuhrCompleted: current?.dhuhrCompleted || 0,
-        asrCompleted: current?.asrCompleted || 0,
-        maghribCompleted: current?.maghribCompleted || 0,
-        ishaCompleted: current?.ishaCompleted || 0,
+        fajrCompleted: 0,
+        dhuhrCompleted: 0,
+        asrCompleted: 0,
+        maghribCompleted: 0,
+        ishaCompleted: 0,
+      };
+
+      const store: QadaStore = {
+        id: 1,
+        ranges: [...(current?.ranges || []), newRange],
         updatedAt: new Date().toISOString(),
       };
 
-      await saveProgress(newData);
-      return newData;
+      await saveProgress(store);
+      return store;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["qada-progress"] });
-      window.location.hash = ''; // Return to dashboard
+      window.location.hash = '';
       toast({
         title: t.setupSuccess,
         description: t.setupSuccessDesc,
@@ -66,17 +108,23 @@ export function useUpdateQadaCount() {
   const t = translations[language as 'en' | 'ar'];
 
   return useMutation({
-    mutationFn: async (data: { prayer: string; action: 'increment' | 'decrement' }) => {
+    mutationFn: async (data: { prayer: string; action: 'increment' | 'decrement'; rangeIndex: number }) => {
       const current = await getProgress();
-      if (!current) throw new Error("No progress found");
+      if (!current || !current.ranges[data.rangeIndex]) throw new Error("No progress found");
 
-      const fieldName = `${data.prayer}Completed` as keyof QadaData;
-      const currentCount = Number(current[fieldName]);
+      const range = { ...current.ranges[data.rangeIndex] };
+      const completedField = `${data.prayer}Completed` as keyof QadaRange;
+      const currentCount = Number(range[completedField]);
       const newCount = data.action === 'increment' ? currentCount + 1 : Math.max(0, currentCount - 1);
 
-      const updated = {
+      (range as any)[completedField] = newCount;
+
+      const newRanges = [...current.ranges];
+      newRanges[data.rangeIndex] = range;
+
+      const updated: QadaStore = {
         ...current,
-        [fieldName]: newCount,
+        ranges: newRanges,
         updatedAt: new Date().toISOString(),
       };
 
@@ -85,22 +133,27 @@ export function useUpdateQadaCount() {
     },
     onMutate: async (newData) => {
       await queryClient.cancelQueries({ queryKey: ["qada-progress"] });
-      const previousData = queryClient.getQueryData<QadaData>(["qada-progress"]);
+      const previousData = queryClient.getQueryData<QadaStore>(["qada-progress"]);
 
-      if (previousData) {
-        const fieldName = `${newData.prayer}Completed` as keyof QadaData;
-        const currentCount = Number(previousData[fieldName]);
+      if (previousData && previousData.ranges[newData.rangeIndex]) {
+        const range = { ...previousData.ranges[newData.rangeIndex] };
+        const completedField = `${newData.prayer}Completed` as keyof QadaRange;
+        const currentCount = Number(range[completedField]);
         const newCount = newData.action === 'increment' ? currentCount + 1 : Math.max(0, currentCount - 1);
+        (range as any)[completedField] = newCount;
 
-        queryClient.setQueryData<QadaData>(["qada-progress"], {
+        const newRanges = [...previousData.ranges];
+        newRanges[newData.rangeIndex] = range;
+
+        queryClient.setQueryData<QadaStore>(["qada-progress"], {
           ...previousData,
-          [fieldName]: newCount,
+          ranges: newRanges,
         });
       }
 
       return { previousData };
     },
-    onError: (err, newData, context) => {
+    onError: (_err, _newData, context) => {
       if (context?.previousData) {
         queryClient.setQueryData(["qada-progress"], context.previousData);
       }
@@ -123,18 +176,24 @@ export function useSetQadaCount() {
   const t = translations[language as 'en' | 'ar'];
 
   return useMutation({
-    mutationFn: async (data: { prayer: string; count: number }) => {
+    mutationFn: async (data: { prayer: string; count: number; rangeIndex: number }) => {
       const current = await getProgress();
-      if (!current) throw new Error("No progress found");
+      if (!current || !current.ranges[data.rangeIndex]) throw new Error("No progress found");
 
-      const completedField = `${data.prayer}Completed` as keyof QadaData;
-      const totalField = `${data.prayer}Count` as keyof QadaData;
-      const total = Number(current[totalField]);
+      const range = { ...current.ranges[data.rangeIndex] };
+      const completedField = `${data.prayer}Completed` as keyof QadaRange;
+      const totalField = `${data.prayer}Count` as keyof QadaRange;
+      const total = Number(range[totalField]);
       const clamped = Math.max(0, Math.min(data.count, total));
 
-      const updated = {
+      (range as any)[completedField] = clamped;
+
+      const newRanges = [...current.ranges];
+      newRanges[data.rangeIndex] = range;
+
+      const updated: QadaStore = {
         ...current,
-        [completedField]: clamped,
+        ranges: newRanges,
         updatedAt: new Date().toISOString(),
       };
 
@@ -143,23 +202,28 @@ export function useSetQadaCount() {
     },
     onMutate: async (newData) => {
       await queryClient.cancelQueries({ queryKey: ["qada-progress"] });
-      const previousData = queryClient.getQueryData<QadaData>(["qada-progress"]);
+      const previousData = queryClient.getQueryData<QadaStore>(["qada-progress"]);
 
-      if (previousData) {
-        const completedField = `${newData.prayer}Completed` as keyof QadaData;
-        const totalField = `${newData.prayer}Count` as keyof QadaData;
-        const total = Number(previousData[totalField]);
+      if (previousData && previousData.ranges[newData.rangeIndex]) {
+        const range = { ...previousData.ranges[newData.rangeIndex] };
+        const completedField = `${newData.prayer}Completed` as keyof QadaRange;
+        const totalField = `${newData.prayer}Count` as keyof QadaRange;
+        const total = Number(range[totalField]);
         const clamped = Math.max(0, Math.min(newData.count, total));
+        (range as any)[completedField] = clamped;
 
-        queryClient.setQueryData<QadaData>(["qada-progress"], {
+        const newRanges = [...previousData.ranges];
+        newRanges[newData.rangeIndex] = range;
+
+        queryClient.setQueryData<QadaStore>(["qada-progress"], {
           ...previousData,
-          [completedField]: clamped,
+          ranges: newRanges,
         });
       }
 
       return { previousData };
     },
-    onError: (err, newData, context) => {
+    onError: (_err, _newData, context) => {
       if (context?.previousData) {
         queryClient.setQueryData(["qada-progress"], context.previousData);
       }
@@ -171,6 +235,44 @@ export function useSetQadaCount() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["qada-progress"] });
+    },
+  });
+}
+
+export function useDeleteRange() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { language } = useLanguageStore();
+  const t = translations[language as 'en' | 'ar'];
+
+  return useMutation({
+    mutationFn: async (rangeIndex: number) => {
+      const current = await getProgress();
+      if (!current) throw new Error("No progress found");
+
+      const newRanges = current.ranges.filter((_, i) => i !== rangeIndex);
+
+      const updated: QadaStore = {
+        ...current,
+        ranges: newRanges,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await saveProgress(updated);
+      return updated;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["qada-progress"] });
+      toast({
+        title: t.deleteRangeSuccess,
+      });
+    },
+    onError: () => {
+      toast({
+        title: t.updateFailed,
+        description: t.updateFailedDesc,
+        variant: "destructive",
+      });
     },
   });
 }
@@ -205,13 +307,23 @@ export function useImportExport() {
       const text = await file.text();
       const data = JSON.parse(text);
 
-      // Basic validation
-      if (!data.missedStartDate || !data.missedEndDate || typeof data.fajrCount !== 'number') {
+      let store: QadaStore;
+
+      // Detect old single-range format (has missedStartDate at top level)
+      if (data.missedStartDate && !data.ranges) {
+        store = {
+          id: 1,
+          ranges: [legacyToRange(data as QadaData)],
+          updatedAt: data.updatedAt || new Date().toISOString(),
+        };
+      } else if (data.ranges && Array.isArray(data.ranges)) {
+        store = { id: 1, ranges: data.ranges, updatedAt: data.updatedAt || new Date().toISOString() };
+      } else {
         throw new Error("Invalid format");
       }
 
-      await saveProgress(data);
-      queryClient.setQueryData(["qada-progress"], data);
+      await saveProgress(store);
+      queryClient.setQueryData(["qada-progress"], store);
       await queryClient.invalidateQueries({ queryKey: ["qada-progress"] });
 
       toast({
