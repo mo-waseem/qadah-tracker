@@ -24,7 +24,7 @@ export interface QadaStore {
   updatedAt: string;
 }
 
-/** @deprecated — kept for backward compat with old single-range imports */
+/** @deprecated — kept for backward compat with old single-range imports/migration */
 export interface QadaData {
   id: number;
   missedStartDate: string;
@@ -62,24 +62,24 @@ export function legacyToRange(data: QadaData): QadaRange {
 
 export async function initDB() {
   return openDB(DB_NAME, 2, {
-    upgrade(db, oldVersion, _newVersion, tx) {
+    async upgrade(db, oldVersion, _newVersion, tx) {
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME, { keyPath: 'id' });
       }
 
       // Migrate v1 → v2: wrap single record into ranges[]
+      // We use await to ensure migration completes before version is committed
       if (oldVersion === 1) {
         const store = tx.objectStore(STORE_NAME);
-        store.get(1).then((oldData) => {
-          if (oldData && oldData.missedStartDate) {
-            const migrated: QadaStore = {
-              id: 1,
-              ranges: [legacyToRange(oldData as QadaData)],
-              updatedAt: oldData.updatedAt || new Date().toISOString(),
-            };
-            store.put(migrated);
-          }
-        });
+        const oldData = await store.get(1);
+        if (oldData && oldData.missedStartDate && !oldData.ranges) {
+          const migrated: QadaStore = {
+            id: 1,
+            ranges: [legacyToRange(oldData as QadaData)],
+            updatedAt: oldData.updatedAt || new Date().toISOString(),
+          };
+          await store.put(migrated);
+        }
       }
     },
   });

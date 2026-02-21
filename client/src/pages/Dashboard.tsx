@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useQada, useUpdateQadaCount, useSetQadaCount, useUpdateRange, useDeleteRange, useImportExport, aggregateRanges } from "@/hooks/use-qada";
+import { useQada, useUpdateQadaCount, useSetQadaCount, useUpdateRange, useDeleteRange, useImportExport, aggregateRanges, type AggregatedQada } from "@/hooks/use-qada";
 import { PrayerCard } from "@/components/PrayerCard";
 import { Sun, Moon, Sunrise, Sunset, CloudSun, Settings, Globe, Info, Download, Upload, FileJson, Share, Smartphone, Plus, Trash2, CalendarRange, Pencil } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -116,11 +116,11 @@ export default function Dashboard() {
     agg.maghribCount + agg.ishaCount;
 
   const handleUpdate = (prayer: typeof prayers[number]['id'], action: 'increment' | 'decrement') => {
-    updateMutation.mutate({ prayer, action, rangeIndex: lastRangeIndex });
+    updateMutation.mutate({ prayer, action });
   };
 
   const handleSetCount = (prayer: typeof prayers[number]['id'], count: number) => {
-    setCountMutation.mutate({ prayer, count, rangeIndex: lastRangeIndex });
+    setCountMutation.mutate({ prayer, count });
   };
 
   const handleDeleteRange = (index: number) => {
@@ -302,26 +302,25 @@ export default function Dashboard() {
 
         {/* Prayer Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {prayers.map((prayer, index) => (
+          {prayers.map((prayer) => (
             <motion.div
               key={prayer.id}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.05 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
             >
               <PrayerCard
                 name={language === 'ar' ? prayer.arabic : prayer.name}
                 arabicName={language === 'ar' ? prayer.name : prayer.arabic}
-                icon={prayer.icon}
-                color={prayer.color}
                 // @ts-ignore - dynamic key access
                 total={agg[`${prayer.id}Count`]}
                 // @ts-ignore - dynamic key access
                 completed={agg[`${prayer.id}Completed`]}
-                onIncrement={() => handleUpdate(prayer.id, 'increment')}
-                onDecrement={() => handleUpdate(prayer.id, 'decrement')}
-                onSetCount={(count) => handleSetCount(prayer.id, count)}
-                isUpdating={updateMutation.isPending || setCountMutation.isPending}
+                color={prayer.color}
+                icon={prayer.icon}
+                onIncrement={() => handleUpdate(prayer.id as any, 'increment')}
+                onDecrement={() => handleUpdate(prayer.id as any, 'decrement')}
+                onSetCount={(count) => handleSetCount(prayer.id as any, count)}
+                isUpdating={updateMutation.isPending || setCountMutation.isPending || updateRangeMutation.isPending}
               />
             </motion.div>
           ))}
@@ -384,20 +383,20 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={() => handleEditRange(index)}
-                      className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                      className="p-2.5 rounded-xl bg-muted/50 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors touch-manipulation"
                       title={t.editRange}
                     >
-                      <Pencil className="w-4 h-4" />
+                      <Pencil className="w-5 h-5" />
                     </button>
                     <button
                       onClick={() => handleDeleteRange(index)}
-                      className="p-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      className="p-2.5 rounded-xl bg-muted/50 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors touch-manipulation"
                       title={t.deleteRange}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-5 h-5" />
                     </button>
                   </div>
                 </motion.div>

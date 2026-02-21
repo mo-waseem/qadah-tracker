@@ -41,6 +41,30 @@ export function aggregateRanges(ranges: QadaRange[]): AggregatedQada {
   );
 }
 
+/** 
+ * Waterfall distribution: Distributes a total count across ranges from oldest to newest.
+ * Each range is filled to its max before moving to the next.
+ */
+function distributeCount(ranges: QadaRange[], prayer: string, targetTotal: number): QadaRange[] {
+  const newRanges = [...ranges];
+  const field = `${prayer}Completed` as keyof QadaRange;
+  const countField = `${prayer}Count` as keyof QadaRange;
+
+  let remainingTotal = targetTotal;
+
+  for (let i = 0; i < newRanges.length; i++) {
+    const range = { ...newRanges[i] };
+    const maxForRange = Number(range[countField]);
+    const assigned = Math.min(remainingTotal, maxForRange);
+
+    (range as any)[field] = assigned;
+    newRanges[i] = range;
+    remainingTotal -= assigned;
+  }
+
+  return newRanges;
+}
+
 // ─── Hooks ──────────────────────────────────────────────────────────
 
 export function useQada() {
@@ -64,7 +88,8 @@ export function useSetupQada() {
       const current = await getProgress();
       const start = new Date(input.missedStartDate);
       const end = new Date(input.missedEndDate);
-      const diffDays = Math.max(0, differenceInDays(end, start));
+      // Incluse both start and end days
+      const diffDays = Math.max(0, differenceInDays(end, start) + 1);
 
       const newRange: QadaRange = {
         missedStartDate: input.missedStartDate,
@@ -108,23 +133,20 @@ export function useUpdateQadaCount() {
   const t = translations[language as 'en' | 'ar'];
 
   return useMutation({
-    mutationFn: async (data: { prayer: string; action: 'increment' | 'decrement'; rangeIndex: number }) => {
+    mutationFn: async (data: { prayer: string; action: 'increment' | 'decrement' }) => {
       const current = await getProgress();
-      if (!current || !current.ranges[data.rangeIndex]) throw new Error("No progress found");
+      if (!current || current.ranges.length === 0) throw new Error("No progress found");
 
-      const range = { ...current.ranges[data.rangeIndex] };
-      const completedField = `${data.prayer}Completed` as keyof QadaRange;
-      const currentCount = Number(range[completedField]);
-      const newCount = data.action === 'increment' ? currentCount + 1 : Math.max(0, currentCount - 1);
+      const agg = aggregateRanges(current.ranges);
+      const field = `${data.prayer}Completed` as keyof AggregatedQada;
+      const currentTotal = Number(agg[field]);
+      const newTotal = data.action === 'increment' ? currentTotal + 1 : Math.max(0, currentTotal - 1);
 
-      (range as any)[completedField] = newCount;
-
-      const newRanges = [...current.ranges];
-      newRanges[data.rangeIndex] = range;
+      const updatedRanges = distributeCount(current.ranges, data.prayer, newTotal);
 
       const updated: QadaStore = {
         ...current,
-        ranges: newRanges,
+        ranges: updatedRanges,
         updatedAt: new Date().toISOString(),
       };
 
@@ -135,15 +157,13 @@ export function useUpdateQadaCount() {
       await queryClient.cancelQueries({ queryKey: ["qada-progress"] });
       const previousData = queryClient.getQueryData<QadaStore>(["qada-progress"]);
 
-      if (previousData && previousData.ranges[newData.rangeIndex]) {
-        const range = { ...previousData.ranges[newData.rangeIndex] };
-        const completedField = `${newData.prayer}Completed` as keyof QadaRange;
-        const currentCount = Number(range[completedField]);
-        const newCount = newData.action === 'increment' ? currentCount + 1 : Math.max(0, currentCount - 1);
-        (range as any)[completedField] = newCount;
+      if (previousData) {
+        const agg = aggregateRanges(previousData.ranges);
+        const field = `${newData.prayer}Completed` as keyof AggregatedQada;
+        const currentTotal = Number(agg[field]);
+        const newTotal = newData.action === 'increment' ? currentTotal + 1 : Math.max(0, currentTotal - 1);
 
-        const newRanges = [...previousData.ranges];
-        newRanges[newData.rangeIndex] = range;
+        const newRanges = distributeCount(previousData.ranges, newData.prayer, newTotal);
 
         queryClient.setQueryData<QadaStore>(["qada-progress"], {
           ...previousData,
@@ -176,24 +196,15 @@ export function useSetQadaCount() {
   const t = translations[language as 'en' | 'ar'];
 
   return useMutation({
-    mutationFn: async (data: { prayer: string; count: number; rangeIndex: number }) => {
+    mutationFn: async (data: { prayer: string; count: number }) => {
       const current = await getProgress();
-      if (!current || !current.ranges[data.rangeIndex]) throw new Error("No progress found");
+      if (!current || current.ranges.length === 0) throw new Error("No progress found");
 
-      const range = { ...current.ranges[data.rangeIndex] };
-      const completedField = `${data.prayer}Completed` as keyof QadaRange;
-      const totalField = `${data.prayer}Count` as keyof QadaRange;
-      const total = Number(range[totalField]);
-      const clamped = Math.max(0, Math.min(data.count, total));
-
-      (range as any)[completedField] = clamped;
-
-      const newRanges = [...current.ranges];
-      newRanges[data.rangeIndex] = range;
+      const updatedRanges = distributeCount(current.ranges, data.prayer, data.count);
 
       const updated: QadaStore = {
         ...current,
-        ranges: newRanges,
+        ranges: updatedRanges,
         updatedAt: new Date().toISOString(),
       };
 
@@ -204,16 +215,8 @@ export function useSetQadaCount() {
       await queryClient.cancelQueries({ queryKey: ["qada-progress"] });
       const previousData = queryClient.getQueryData<QadaStore>(["qada-progress"]);
 
-      if (previousData && previousData.ranges[newData.rangeIndex]) {
-        const range = { ...previousData.ranges[newData.rangeIndex] };
-        const completedField = `${newData.prayer}Completed` as keyof QadaRange;
-        const totalField = `${newData.prayer}Count` as keyof QadaRange;
-        const total = Number(range[totalField]);
-        const clamped = Math.max(0, Math.min(newData.count, total));
-        (range as any)[completedField] = clamped;
-
-        const newRanges = [...previousData.ranges];
-        newRanges[newData.rangeIndex] = range;
+      if (previousData) {
+        const newRanges = distributeCount(previousData.ranges, newData.prayer, newData.count);
 
         queryClient.setQueryData<QadaStore>(["qada-progress"], {
           ...previousData,
@@ -252,7 +255,8 @@ export function useUpdateRange() {
 
       const start = new Date(data.missedStartDate);
       const end = new Date(data.missedEndDate);
-      const diffDays = Math.max(0, differenceInDays(end, start));
+      // Include both start and end days
+      const diffDays = Math.max(0, differenceInDays(end, start) + 1);
 
       const oldRange = current.ranges[data.rangeIndex];
       const updatedRange: QadaRange = {
@@ -264,7 +268,8 @@ export function useUpdateRange() {
         asrCount: diffDays,
         maghribCount: diffDays,
         ishaCount: diffDays,
-        // Cap completed at new total
+        // Caps are handled automatically by the next saveProgress if we were distributing, 
+        // but here we just want to ensure validity for THIS range immediately.
         fajrCompleted: Math.min(oldRange.fajrCompleted, diffDays),
         dhuhrCompleted: Math.min(oldRange.dhuhrCompleted, diffDays),
         asrCompleted: Math.min(oldRange.asrCompleted, diffDays),
