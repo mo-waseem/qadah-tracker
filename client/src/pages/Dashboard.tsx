@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { useQada, useUpdateQadaCount, useSetQadaCount, useDeleteRange, useImportExport, aggregateRanges } from "@/hooks/use-qada";
+import { useQada, useUpdateQadaCount, useSetQadaCount, useUpdateRange, useDeleteRange, useImportExport, aggregateRanges } from "@/hooks/use-qada";
 import { PrayerCard } from "@/components/PrayerCard";
-import { Sun, Moon, Sunrise, Sunset, CloudSun, Settings, Globe, Info, Download, Upload, FileJson, Share, Smartphone, Plus, Trash2, CalendarRange } from "lucide-react";
+import { Sun, Moon, Sunrise, Sunset, CloudSun, Settings, Globe, Info, Download, Upload, FileJson, Share, Smartphone, Plus, Trash2, CalendarRange, Pencil } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguageStore } from "@/hooks/use-language";
 import { translations } from "@/lib/translations";
@@ -37,6 +37,7 @@ export default function Dashboard() {
   const { data: store, isLoading } = useQada();
   const updateMutation = useUpdateQadaCount();
   const setCountMutation = useSetQadaCount();
+  const updateRangeMutation = useUpdateRange();
   const deleteMutation = useDeleteRange();
   const { exportData, importData } = useImportExport();
   const { language, setLanguage } = useLanguageStore();
@@ -45,6 +46,9 @@ export default function Dashboard() {
   const [pendingImport, setPendingImport] = useState<QadaStore | null>(null);
   const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
   const [deleteRangeIndex, setDeleteRangeIndex] = useState<number | null>(null);
+  const [editRangeIndex, setEditRangeIndex] = useState<number | null>(null);
+  const [editStartDate, setEditStartDate] = useState("");
+  const [editEndDate, setEditEndDate] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // PWA Install logic
@@ -123,10 +127,28 @@ export default function Dashboard() {
     setDeleteRangeIndex(index);
   };
 
+  const handleEditRange = (index: number) => {
+    const range = store.ranges[index];
+    setEditRangeIndex(index);
+    setEditStartDate(range.missedStartDate);
+    setEditEndDate(range.missedEndDate);
+  };
+
   const confirmDeleteRange = () => {
     if (deleteRangeIndex !== null) {
       deleteMutation.mutate(deleteRangeIndex);
       setDeleteRangeIndex(null);
+    }
+  };
+
+  const confirmEditRange = () => {
+    if (editRangeIndex !== null) {
+      updateRangeMutation.mutate({
+        rangeIndex: editRangeIndex,
+        missedStartDate: editStartDate,
+        missedEndDate: editEndDate,
+      });
+      setEditRangeIndex(null);
     }
   };
 
@@ -362,19 +384,80 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => handleDeleteRange(index)}
-                    className="p-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
-                    title={t.deleteRange}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => handleEditRange(index)}
+                      className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                      title={t.editRange}
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteRange(index)}
+                      className="p-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      title={t.deleteRange}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </motion.div>
               );
             })}
           </div>
         </motion.div>
       </main>
+
+      {/* Edit Range Dialog */}
+      <Dialog open={editRangeIndex !== null} onOpenChange={(open) => !open && setEditRangeIndex(null)}>
+        <DialogContent className="rounded-2xl max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="w-5 h-5 text-primary" />
+              {t.editRange}
+            </DialogTitle>
+            <DialogDescription>
+              {t.setupDesc}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{t.stopPraying}</label>
+              <input
+                type="date"
+                value={editStartDate}
+                onChange={(e) => setEditStartDate(e.target.value)}
+                className="w-full px-4 py-2 rounded-xl bg-background border-2 border-border focus:border-primary outline-none transition-all"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{t.startPraying}</label>
+              <input
+                type="date"
+                value={editEndDate}
+                onChange={(e) => setEditEndDate(e.target.value)}
+                className="w-full px-4 py-2 rounded-xl bg-background border-2 border-border focus:border-primary outline-none transition-all"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <button
+              onClick={() => setEditRangeIndex(null)}
+              className="w-full sm:w-auto px-6 py-2 rounded-xl border border-border font-medium hover:bg-accent transition-all"
+            >
+              {t.cancel}
+            </button>
+            <button
+              onClick={confirmEditRange}
+              disabled={!editStartDate || !editEndDate || new Date(editStartDate) >= new Date(editEndDate)}
+              className="w-full sm:w-auto px-6 py-2 rounded-xl bg-primary text-primary-foreground font-bold hover:bg-primary/90 transition-all disabled:opacity-50"
+            >
+              {t.save}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Range Confirmation */}
       <AlertDialog open={deleteRangeIndex !== null} onOpenChange={(open) => !open && setDeleteRangeIndex(null)}>

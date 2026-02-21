@@ -239,6 +239,65 @@ export function useSetQadaCount() {
   });
 }
 
+export function useUpdateRange() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { language } = useLanguageStore();
+  const t = translations[language as 'en' | 'ar'];
+
+  return useMutation({
+    mutationFn: async (data: { rangeIndex: number; missedStartDate: string; missedEndDate: string }) => {
+      const current = await getProgress();
+      if (!current || !current.ranges[data.rangeIndex]) throw new Error("No progress found");
+
+      const start = new Date(data.missedStartDate);
+      const end = new Date(data.missedEndDate);
+      const diffDays = Math.max(0, differenceInDays(end, start));
+
+      const oldRange = current.ranges[data.rangeIndex];
+      const updatedRange: QadaRange = {
+        ...oldRange,
+        missedStartDate: data.missedStartDate,
+        missedEndDate: data.missedEndDate,
+        fajrCount: diffDays,
+        dhuhrCount: diffDays,
+        asrCount: diffDays,
+        maghribCount: diffDays,
+        ishaCount: diffDays,
+        // Cap completed at new total
+        fajrCompleted: Math.min(oldRange.fajrCompleted, diffDays),
+        dhuhrCompleted: Math.min(oldRange.dhuhrCompleted, diffDays),
+        asrCompleted: Math.min(oldRange.asrCompleted, diffDays),
+        maghribCompleted: Math.min(oldRange.maghribCompleted, diffDays),
+        ishaCompleted: Math.min(oldRange.ishaCompleted, diffDays),
+      };
+
+      const newRanges = [...current.ranges];
+      newRanges[data.rangeIndex] = updatedRange;
+
+      const updated: QadaStore = {
+        ...current,
+        ranges: newRanges,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await saveProgress(updated);
+      return updated;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["qada-progress"] });
+      toast({ title: t.editRangeSuccess });
+    },
+    onError: () => {
+      toast({
+        title: t.updateFailed,
+        description: t.updateFailedDesc,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
 export function useDeleteRange() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
