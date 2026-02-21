@@ -1,5 +1,6 @@
+import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Plus, Minus } from "lucide-react";
+import { Plus, Minus, Pencil, Check, X } from "lucide-react";
 import { CircularProgressbarWithChildren, buildStyles } from "react-circular-progressbar";
 import "react-circular-progressbar/dist/styles.css";
 import { cn } from "@/lib/utils";
@@ -15,6 +16,7 @@ interface PrayerCardProps {
   icon: React.ReactNode;
   onIncrement: () => void;
   onDecrement: () => void;
+  onSetCount: (count: number) => void;
   isUpdating: boolean;
 }
 
@@ -27,12 +29,46 @@ export function PrayerCard({
   icon,
   onIncrement,
   onDecrement,
+  onSetCount,
   isUpdating
 }: PrayerCardProps) {
   const percentage = Math.min(100, Math.round((completed / total) * 100));
   const remaining = Math.max(0, total - completed);
   const { language } = useLanguageStore();
   const t = translations[language];
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleStartEdit = () => {
+    setEditValue(String(completed));
+    setIsEditing(true);
+  };
+
+  const handleConfirmEdit = () => {
+    const num = parseInt(editValue, 10);
+    if (!isNaN(num)) {
+      onSetCount(Math.max(0, Math.min(num, total)));
+    }
+    setIsEditing(false);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") handleConfirmEdit();
+    if (e.key === "Escape") handleCancelEdit();
+  };
 
   return (
     <motion.div
@@ -41,7 +77,7 @@ export function PrayerCard({
     >
       {/* Background decoration */}
       <div className={cn("absolute top-0 right-0 w-32 h-32 opacity-5 rounded-bl-full pointer-events-none", color)} />
-      
+
       <div className="p-6 flex flex-col items-center">
         <div className="w-full flex justify-between items-start mb-6">
           <div className="flex flex-col">
@@ -49,7 +85,7 @@ export function PrayerCard({
             <span className="text-sm font-display text-muted-foreground opacity-80">{arabicName}</span>
           </div>
           <div className={cn("p-2 rounded-xl bg-opacity-10", color.replace('bg-', 'bg-opacity-10 bg-'))}>
-             <div className={cn("text-current", color.replace('bg-', 'text-'))}>{icon}</div>
+            <div className={cn("text-current", color.replace('bg-', 'text-'))}>{icon}</div>
           </div>
         </div>
 
@@ -75,9 +111,43 @@ export function PrayerCard({
             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">{t.left}</p>
             <p className="text-lg font-bold text-foreground">{remaining.toLocaleString()}</p>
           </div>
-          <div className="bg-muted/50 rounded-xl p-3 text-center">
+          <div
+            className="bg-muted/50 rounded-xl p-3 text-center cursor-pointer hover:bg-muted/80 transition-colors group relative"
+            onClick={!isEditing ? handleStartEdit : undefined}
+            title={t.editCount}
+          >
             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">{t.done}</p>
-            <p className="text-lg font-bold text-primary">{completed.toLocaleString()}</p>
+            {isEditing ? (
+              <div className="flex items-center gap-1 justify-center">
+                <input
+                  ref={inputRef}
+                  type="number"
+                  min={0}
+                  max={total}
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="w-20 text-center text-lg font-bold bg-background border border-border rounded-lg px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleConfirmEdit(); }}
+                  className="p-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                >
+                  <Check className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleCancelEdit(); }}
+                  className="p-1 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center gap-1">
+                <p className="text-lg font-bold text-primary">{completed.toLocaleString()}</p>
+                <Pencil className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            )}
           </div>
         </div>
 
@@ -89,7 +159,7 @@ export function PrayerCard({
           >
             <Minus className="w-5 h-5" />
           </button>
-          
+
           <button
             onClick={onIncrement}
             disabled={isUpdating || remaining === 0}
@@ -106,3 +176,4 @@ export function PrayerCard({
     </motion.div>
   );
 }
+

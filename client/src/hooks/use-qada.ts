@@ -116,6 +116,65 @@ export function useUpdateQadaCount() {
   });
 }
 
+export function useSetQadaCount() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { language } = useLanguageStore();
+  const t = translations[language as 'en' | 'ar'];
+
+  return useMutation({
+    mutationFn: async (data: { prayer: string; count: number }) => {
+      const current = await getProgress();
+      if (!current) throw new Error("No progress found");
+
+      const completedField = `${data.prayer}Completed` as keyof QadaData;
+      const totalField = `${data.prayer}Count` as keyof QadaData;
+      const total = Number(current[totalField]);
+      const clamped = Math.max(0, Math.min(data.count, total));
+
+      const updated = {
+        ...current,
+        [completedField]: clamped,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await saveProgress(updated);
+      return updated;
+    },
+    onMutate: async (newData) => {
+      await queryClient.cancelQueries({ queryKey: ["qada-progress"] });
+      const previousData = queryClient.getQueryData<QadaData>(["qada-progress"]);
+
+      if (previousData) {
+        const completedField = `${newData.prayer}Completed` as keyof QadaData;
+        const totalField = `${newData.prayer}Count` as keyof QadaData;
+        const total = Number(previousData[totalField]);
+        const clamped = Math.max(0, Math.min(newData.count, total));
+
+        queryClient.setQueryData<QadaData>(["qada-progress"], {
+          ...previousData,
+          [completedField]: clamped,
+        });
+      }
+
+      return { previousData };
+    },
+    onError: (err, newData, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(["qada-progress"], context.previousData);
+      }
+      toast({
+        title: t.updateFailed,
+        description: t.updateFailedDesc,
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["qada-progress"] });
+    },
+  });
+}
+
 export function useImportExport() {
   const queryClient = useQueryClient();
   const { toast } = useToast();

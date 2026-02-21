@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useQada, useUpdateQadaCount, useImportExport } from "@/hooks/use-qada";
+import { useQada, useUpdateQadaCount, useSetQadaCount, useImportExport } from "@/hooks/use-qada";
 import { PrayerCard } from "@/components/PrayerCard";
 import { Sun, Moon, Sunrise, Sunset, CloudSun, Settings, Globe, Info, Download, Upload, FileJson, Share, Smartphone } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -36,6 +36,7 @@ const prayers = [
 export default function Dashboard() {
   const { data: qada, isLoading } = useQada();
   const updateMutation = useUpdateQadaCount();
+  const setCountMutation = useSetQadaCount();
   const { exportData, importData } = useImportExport();
   const { language, setLanguage } = useLanguageStore();
   const t = translations[language];
@@ -107,6 +108,10 @@ export default function Dashboard() {
 
   const handleUpdate = (prayer: typeof prayers[number]['id'], action: 'increment' | 'decrement') => {
     updateMutation.mutate({ prayer, action });
+  };
+
+  const handleSetCount = (prayer: typeof prayers[number]['id'], count: number) => {
+    setCountMutation.mutate({ prayer, count });
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -283,7 +288,8 @@ export default function Dashboard() {
                 completed={qada[`${prayer.id}Completed`]}
                 onIncrement={() => handleUpdate(prayer.id, 'increment')}
                 onDecrement={() => handleUpdate(prayer.id, 'decrement')}
-                isUpdating={updateMutation.isPending}
+                onSetCount={(count) => handleSetCount(prayer.id, count)}
+                isUpdating={updateMutation.isPending || setCountMutation.isPending}
               />
             </motion.div>
           ))}
