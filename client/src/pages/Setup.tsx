@@ -8,7 +8,7 @@ import { Calendar, ArrowRight, Calculator, Globe, Info } from "lucide-react";
 import { useSetupQada, useQada, countFridays } from "@/hooks/use-qada";
 import { useLanguageStore } from "@/hooks/use-language";
 import { translations } from "@/lib/translations";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const setupSchema = z.object({
   startDate: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date"),
@@ -141,18 +141,16 @@ export default function Setup() {
               <label htmlFor="excludeJomaa" className="cursor-pointer">
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm font-medium text-foreground">{t.excludeJomaa}</span>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button type="button" className="text-muted-foreground hover:text-primary transition-colors">
-                          <Info className="w-4 h-4" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="max-w-xs text-center border-border bg-white dark:bg-zinc-950 opacity-100 shadow-2xl z-[70] p-3">
-                        <p className="text-sm font-medium">{t.excludeJomaaTooltip}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button type="button" className="text-muted-foreground hover:text-primary transition-colors">
+                        <Info className="w-4 h-4" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent side="top" className="max-w-xs text-center border-border bg-white dark:bg-zinc-950 opacity-100 shadow-2xl z-[70] p-3">
+                      <p className="text-sm font-medium">{t.excludeJomaaTooltip}</p>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">{t.excludeJomaaHint}</p>
               </label>
