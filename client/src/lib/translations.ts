@@ -88,6 +88,8 @@ export const translations = {
     excludeJomaaHint: "This will exclude all Dhuhr prayers on Fridays",
     excludeJomaaCount: "Fridays to exclude",
     excludeJomaaTooltip: "Did you pray all Jomaa prayers during this period? You can exclude them all from here.",
+    estimatedDays: "Total Days",
+    includedDays: "Included Days",
   },
   ar: {
     appName: "متتبع القضاء",
@@ -176,5 +178,7 @@ export const translations = {
     excludeJomaaHint: "سيتم استثناء جميع صلوات الظهر يوم الجمعة",
     excludeJomaaCount: "عدد أيام الجمعة المستثناة",
     excludeJomaaTooltip: "هل صليت كل صلوات الجمعة في هذه الفترة ؟ يمكنك استثناءها جميعها من هنا",
+    estimatedDays: "إجمالي الأيام",
+    includedDays: "الأيام المشمولة",
   }
 };

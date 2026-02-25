@@ -145,6 +145,10 @@ export default function Dashboard() {
     }
   };
 
+  const editEstimatedDays = editStartDate && editEndDate && !isNaN(Date.parse(editStartDate)) && !isNaN(Date.parse(editEndDate))
+    ? Math.max(0, differenceInCalendarDays(parseISO(editEndDate), parseISO(editStartDate)) + 1)
+    : 0;
+
   const confirmEditRange = () => {
     if (editRangeIndex !== null) {
       updateRangeMutation.mutate({
@@ -444,6 +448,15 @@ export default function Dashboard() {
               />
             </div>
           </div>
+
+          {editEstimatedDays > 0 && (
+            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/50">
+              <span className="text-sm text-muted-foreground">{t.estimatedDays}</span>
+              <span className="text-sm font-bold text-foreground">
+                {editEstimatedDays} {language === 'ar' ? 'يوم' : editEstimatedDays === 1 ? 'Day' : 'Days'}
+              </span>
+            </div>
+          )}
 
           {/* Exclude Jomaa Checkbox */}
           <div className="flex items-start gap-3">

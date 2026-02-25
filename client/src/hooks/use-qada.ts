@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getProgress, saveProgress, type QadaStore, type QadaRange, type QadaData, legacyToRange } from "@/lib/idb";
 import { useToast } from "@/hooks/use-toast";
-import { differenceInCalendarDays, eachDayOfInterval, getDay } from "date-fns";
+import { differenceInCalendarDays, eachDayOfInterval, getDay, parseISO } from "date-fns";
 import { useLanguageStore } from "@/hooks/use-language";
 import { translations } from "@/lib/translations";
 
@@ -9,8 +9,8 @@ import { translations } from "@/lib/translations";
 
 /** Count Fridays (day index 5) between two ISO date strings, inclusive. */
 export function countFridays(startDate: string, endDate: string): number {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  const start = parseISO(startDate);
+  const end = parseISO(endDate);
   if (start > end) return 0;
   return eachDayOfInterval({ start, end }).filter(d => getDay(d) === 5).length;
 }
@@ -96,9 +96,9 @@ export function useSetupQada() {
   return useMutation({
     mutationFn: async (input: { missedStartDate: string; missedEndDate: string; excludeJomaa?: boolean }) => {
       const current = await getProgress();
-      const start = new Date(input.missedStartDate);
-      const end = new Date(input.missedEndDate);
-      // Include both start and end days using calendar days to avoid 24h boundary issues
+      const start = parseISO(input.missedStartDate);
+      const end = parseISO(input.missedEndDate);
+      // Include both start and end days using calendar days
       const diffDays = Math.max(0, differenceInCalendarDays(end, start) + 1);
       const fridays = input.excludeJomaa ? countFridays(input.missedStartDate, input.missedEndDate) : 0;
 
@@ -265,9 +265,8 @@ export function useUpdateRange() {
       const current = await getProgress();
       if (!current || !current.ranges[data.rangeIndex]) throw new Error("No progress found");
 
-      const start = new Date(data.missedStartDate);
-      const end = new Date(data.missedEndDate);
-      // Include both start and end days
+      const start = parseISO(data.missedStartDate);
+      const end = parseISO(data.missedEndDate);
       const diffDays = Math.max(0, differenceInCalendarDays(end, start) + 1);
       const fridays = data.excludeJomaa ? countFridays(data.missedStartDate, data.missedEndDate) : 0;
       const dhuhrCount = diffDays - fridays;

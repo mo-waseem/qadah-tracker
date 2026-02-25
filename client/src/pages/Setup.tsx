@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion } from "framer-motion";
-import { differenceInCalendarDays } from "date-fns";
+import { differenceInCalendarDays, parseISO } from "date-fns";
 import { Calendar, ArrowRight, Calculator, Globe, Info } from "lucide-react";
 import { useSetupQada, useQada, countFridays } from "@/hooks/use-qada";
 import { useLanguageStore } from "@/hooks/use-language";
@@ -46,7 +46,7 @@ export default function Setup() {
   const watchExcludeJomaa = form.watch("excludeJomaa");
 
   const estimatedDays = watchStartDate && watchEndDate && !isNaN(Date.parse(watchStartDate)) && !isNaN(Date.parse(watchEndDate))
-    ? Math.max(0, differenceInCalendarDays(new Date(watchEndDate), new Date(watchStartDate)) + 1)
+    ? Math.max(0, differenceInCalendarDays(parseISO(watchEndDate), parseISO(watchStartDate)) + 1)
     : 0;
 
   const fridayCount = (watchExcludeJomaa && watchStartDate && watchEndDate && !isNaN(Date.parse(watchStartDate)) && !isNaN(Date.parse(watchEndDate)))
