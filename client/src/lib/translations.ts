@@ -84,6 +84,10 @@ export const translations = {
     hanafiDesc: "Allowed to make up immediately or delay, though promptness is better.",
     practicalGuidance: "Practical Guidance",
     guidanceDesc: "Pray as much as you can daily beyond your five prayers in any hour until completed, ensuring no harm to yourself or your livelihood.",
+    excludeJomaa: "Exclude Jomaa's Prayers",
+    excludeJomaaHint: "This will exclude all Dhuhr prayers on Fridays",
+    excludeJomaaCount: "Fridays to exclude",
+    excludeJomaaTooltip: "Did you pray all Jomaa prayers during this period? You can exclude them all from here.",
   },
   ar: {
     appName: "متتبع القضاء",
@@ -168,5 +172,9 @@ export const translations = {
     hanafiDesc: "يجوز القضاء فوراً كما يجوز التأخير، والبدار والمسارعة أفضل.",
     practicalGuidance: "توجيه عملي",
     guidanceDesc: "صلّ كل يوم زيادة على الصلوات الخمس ما تستطيع في أي ساعة، حتى تبرأ ذمتك، دون إضرار ببدنك أو تعطيل لمعيشتك.",
+    excludeJomaa: "استثناء صلاة الجمعة",
+    excludeJomaaHint: "سيتم استثناء جميع صلوات الظهر يوم الجمعة",
+    excludeJomaaCount: "عدد أيام الجمعة المستثناة",
+    excludeJomaaTooltip: "هل صليت كل صلوات الجمعة في هذه الفترة ؟ يمكنك استثناءها جميعها من هنا",
   }
 };

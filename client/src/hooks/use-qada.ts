@@ -1,9 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getProgress, saveProgress, type QadaStore, type QadaRange, type QadaData, legacyToRange } from "@/lib/idb";
 import { useToast } from "@/hooks/use-toast";
-import { differenceInDays } from "date-fns";
+import { differenceInCalendarDays, eachDayOfInterval, getDay } from "date-fns";
 import { useLanguageStore } from "@/hooks/use-language";
 import { translations } from "@/lib/translations";
+
+// ─── Utilities ──────────────────────────────────────────────────────
+
+/** Count Fridays (day index 5) between two ISO date strings, inclusive. */
+export function countFridays(startDate: string, endDate: string): number {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  if (start > end) return 0;
+  return eachDayOfInterval({ start, end }).filter(d => getDay(d) === 5).length;
+}
 
 // ─── Aggregation helpers ────────────────────────────────────────────
 
@@ -84,18 +94,20 @@ export function useSetupQada() {
   const t = translations[language as 'en' | 'ar'];
 
   return useMutation({
-    mutationFn: async (input: { missedStartDate: string; missedEndDate: string }) => {
+    mutationFn: async (input: { missedStartDate: string; missedEndDate: string; excludeJomaa?: boolean }) => {
       const current = await getProgress();
       const start = new Date(input.missedStartDate);
       const end = new Date(input.missedEndDate);
-      // Incluse both start and end days
-      const diffDays = Math.max(0, differenceInDays(end, start) + 1);
+      // Include both start and end days using calendar days to avoid 24h boundary issues
+      const diffDays = Math.max(0, differenceInCalendarDays(end, start) + 1);
+      const fridays = input.excludeJomaa ? countFridays(input.missedStartDate, input.missedEndDate) : 0;
 
       const newRange: QadaRange = {
         missedStartDate: input.missedStartDate,
         missedEndDate: input.missedEndDate,
+        excludeJomaa: input.excludeJomaa || false,
         fajrCount: diffDays,
-        dhuhrCount: diffDays,
+        dhuhrCount: diffDays - fridays,
         asrCount: diffDays,
         maghribCount: diffDays,
         ishaCount: diffDays,
@@ -249,29 +261,32 @@ export function useUpdateRange() {
   const t = translations[language as 'en' | 'ar'];
 
   return useMutation({
-    mutationFn: async (data: { rangeIndex: number; missedStartDate: string; missedEndDate: string }) => {
+    mutationFn: async (data: { rangeIndex: number; missedStartDate: string; missedEndDate: string; excludeJomaa?: boolean }) => {
       const current = await getProgress();
       if (!current || !current.ranges[data.rangeIndex]) throw new Error("No progress found");
 
       const start = new Date(data.missedStartDate);
       const end = new Date(data.missedEndDate);
       // Include both start and end days
-      const diffDays = Math.max(0, differenceInDays(end, start) + 1);
+      const diffDays = Math.max(0, differenceInCalendarDays(end, start) + 1);
+      const fridays = data.excludeJomaa ? countFridays(data.missedStartDate, data.missedEndDate) : 0;
+      const dhuhrCount = diffDays - fridays;
 
       const oldRange = current.ranges[data.rangeIndex];
       const updatedRange: QadaRange = {
         ...oldRange,
         missedStartDate: data.missedStartDate,
         missedEndDate: data.missedEndDate,
+        excludeJomaa: data.excludeJomaa || false,
         fajrCount: diffDays,
-        dhuhrCount: diffDays,
+        dhuhrCount: dhuhrCount,
         asrCount: diffDays,
         maghribCount: diffDays,
         ishaCount: diffDays,
         // Caps are handled automatically by the next saveProgress if we were distributing, 
         // but here we just want to ensure validity for THIS range immediately.
         fajrCompleted: Math.min(oldRange.fajrCompleted, diffDays),
-        dhuhrCompleted: Math.min(oldRange.dhuhrCompleted, diffDays),
+        dhuhrCompleted: Math.min(oldRange.dhuhrCompleted, dhuhrCount),
         asrCompleted: Math.min(oldRange.asrCompleted, diffDays),
         maghribCompleted: Math.min(oldRange.maghribCompleted, diffDays),
         ishaCompleted: Math.min(oldRange.ishaCompleted, diffDays),

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { useQada, useUpdateQadaCount, useSetQadaCount, useUpdateRange, useDeleteRange, useImportExport, aggregateRanges, type AggregatedQada } from "@/hooks/use-qada";
+import { format, parseISO, differenceInCalendarDays } from "date-fns";
+import { useQada, useUpdateQadaCount, useSetQadaCount, useUpdateRange, useDeleteRange, useImportExport, aggregateRanges, countFridays, type AggregatedQada } from "@/hooks/use-qada";
 import { PrayerCard } from "@/components/PrayerCard";
 import { Sun, Moon, Sunrise, Sunset, CloudSun, Settings, Globe, Info, Download, Upload, FileJson, Share, Smartphone, Plus, Trash2, CalendarRange, Pencil } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,6 +24,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { type QadaStore } from "@/lib/idb";
 
 const prayers = [
@@ -49,6 +51,7 @@ export default function Dashboard() {
   const [editRangeIndex, setEditRangeIndex] = useState<number | null>(null);
   const [editStartDate, setEditStartDate] = useState("");
   const [editEndDate, setEditEndDate] = useState("");
+  const [editExcludeJomaa, setEditExcludeJomaa] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // PWA Install logic
@@ -132,6 +135,7 @@ export default function Dashboard() {
     setEditRangeIndex(index);
     setEditStartDate(range.missedStartDate);
     setEditEndDate(range.missedEndDate);
+    setEditExcludeJomaa(range.excludeJomaa || false);
   };
 
   const confirmDeleteRange = () => {
@@ -147,6 +151,7 @@ export default function Dashboard() {
         rangeIndex: editRangeIndex,
         missedStartDate: editStartDate,
         missedEndDate: editEndDate,
+        excludeJomaa: editExcludeJomaa,
       });
       setEditRangeIndex(null);
     }
@@ -437,6 +442,42 @@ export default function Dashboard() {
                 onChange={(e) => setEditEndDate(e.target.value)}
                 className="w-full px-4 py-2 rounded-xl bg-background border-2 border-border focus:border-primary outline-none transition-all"
               />
+            </div>
+          </div>
+
+          {/* Exclude Jomaa Checkbox */}
+          <div className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              id="editExcludeJomaa"
+              checked={editExcludeJomaa}
+              onChange={(e) => setEditExcludeJomaa(e.target.checked)}
+              className="mt-1 w-5 h-5 rounded border-2 border-border text-primary focus:ring-primary/20 accent-primary cursor-pointer"
+            />
+            <div className="flex-1 flex items-start justify-between">
+              <label htmlFor="editExcludeJomaa" className="cursor-pointer">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-medium text-foreground">{t.excludeJomaa}</span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button type="button" className="text-muted-foreground hover:text-primary transition-colors">
+                          <Info className="w-4 h-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs text-center border-border bg-white dark:bg-zinc-950 opacity-100 shadow-2xl z-[70] p-3">
+                        <p className="text-sm font-medium">{t.excludeJomaaTooltip}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">{t.excludeJomaaHint}</p>
+              </label>
+              {editExcludeJomaa && editStartDate && editEndDate && !isNaN(Date.parse(editStartDate)) && !isNaN(Date.parse(editEndDate)) && countFridays(editStartDate, editEndDate) > 0 && (
+                <span className="shrink-0 text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
+                  {countFridays(editStartDate, editEndDate)} {language === 'ar' ? 'جمعة' : countFridays(editStartDate, editEndDate) === 1 ? 'Friday' : 'Fridays'}
+                </span>
+              )}
             </div>
           </div>
 

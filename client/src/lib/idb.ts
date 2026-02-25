@@ -6,6 +6,7 @@ const STORE_NAME = 'progress';
 export interface QadaRange {
   missedStartDate: string;
   missedEndDate: string;
+  excludeJomaa?: boolean;
   fajrCount: number;
   dhuhrCount: number;
   asrCount: number;

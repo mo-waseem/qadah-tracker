@@ -3,15 +3,17 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion } from "framer-motion";
-import { differenceInDays } from "date-fns";
+import { differenceInCalendarDays } from "date-fns";
 import { Calendar, ArrowRight, Calculator, Globe, Info } from "lucide-react";
-import { useSetupQada, useQada } from "@/hooks/use-qada";
+import { useSetupQada, useQada, countFridays } from "@/hooks/use-qada";
 import { useLanguageStore } from "@/hooks/use-language";
 import { translations } from "@/lib/translations";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const setupSchema = z.object({
   startDate: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date"),
   endDate: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date"),
+  excludeJomaa: z.boolean().default(false),
 }).refine((data) => new Date(data.startDate) < new Date(data.endDate), {
   message: "Start date must be before end date",
   path: ["endDate"],
@@ -35,14 +37,20 @@ export default function Setup() {
     setup({
       missedStartDate: data.startDate,
       missedEndDate: data.endDate,
+      excludeJomaa: data.excludeJomaa,
     });
   };
 
   const watchStartDate = form.watch("startDate");
   const watchEndDate = form.watch("endDate");
+  const watchExcludeJomaa = form.watch("excludeJomaa");
 
   const estimatedDays = watchStartDate && watchEndDate && !isNaN(Date.parse(watchStartDate)) && !isNaN(Date.parse(watchEndDate))
-    ? Math.max(0, differenceInDays(new Date(watchEndDate), new Date(watchStartDate)))
+    ? Math.max(0, differenceInCalendarDays(new Date(watchEndDate), new Date(watchStartDate)) + 1)
+    : 0;
+
+  const fridayCount = (watchExcludeJomaa && watchStartDate && watchEndDate && !isNaN(Date.parse(watchStartDate)) && !isNaN(Date.parse(watchEndDate)))
+    ? countFridays(watchStartDate, watchEndDate)
     : 0;
 
   return (
@@ -121,6 +129,41 @@ export default function Setup() {
             </div>
           </div>
 
+          {/* Exclude Jomaa Checkbox */}
+          <div className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              id="excludeJomaa"
+              {...form.register("excludeJomaa")}
+              className="mt-1 w-5 h-5 rounded border-2 border-border text-primary focus:ring-primary/20 accent-primary cursor-pointer"
+            />
+            <div className="flex-1 flex items-start justify-between">
+              <label htmlFor="excludeJomaa" className="cursor-pointer">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-medium text-foreground">{t.excludeJomaa}</span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button type="button" className="text-muted-foreground hover:text-primary transition-colors">
+                          <Info className="w-4 h-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs text-center border-border bg-white dark:bg-zinc-950 opacity-100 shadow-2xl z-[70] p-3">
+                        <p className="text-sm font-medium">{t.excludeJomaaTooltip}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">{t.excludeJomaaHint}</p>
+              </label>
+              {watchExcludeJomaa && fridayCount > 0 && (
+                <span className="shrink-0 text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
+                  {fridayCount} {language === 'ar' ? 'جمعة' : fridayCount === 1 ? 'Friday' : 'Fridays'}
+                </span>
+              )}
+            </div>
+          </div>
+
           {estimatedDays > 0 && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
@@ -160,6 +203,6 @@ export default function Setup() {
           </div>
         </form>
       </motion.div>
-    </div>
+    </div >
   );
 }
