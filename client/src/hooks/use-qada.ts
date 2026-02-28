@@ -15,6 +15,16 @@ export function countFridays(startDate: string, endDate: string): number {
   return eachDayOfInterval({ start, end }).filter(d => getDay(d) === 5).length;
 }
 
+/** Calculate the number of period days to exclude over a given date range. */
+export function calculatePeriodDays(startDate: string, endDate: string, periodDays: number): number {
+  if (!periodDays || periodDays <= 0) return 0;
+  const start = parseISO(startDate);
+  const end = parseISO(endDate);
+  if (start > end) return 0;
+  const diffDays = Math.max(0, differenceInCalendarDays(end, start) + 1);
+  return Math.round((diffDays / 30.436875) * periodDays); // using average days per month
+}
+
 // ─── Aggregation helpers ────────────────────────────────────────────
 
 export interface AggregatedQada {
@@ -94,23 +104,29 @@ export function useSetupQada() {
   const t = translations[language as 'en' | 'ar'];
 
   return useMutation({
-    mutationFn: async (input: { missedStartDate: string; missedEndDate: string; excludeJomaa?: boolean }) => {
+    mutationFn: async (input: { missedStartDate: string; missedEndDate: string; excludeJomaa?: boolean; excludePeriod?: boolean; periodDays?: number }) => {
       const current = await getProgress();
       const start = parseISO(input.missedStartDate);
       const end = parseISO(input.missedEndDate);
       // Include both start and end days using calendar days
       const diffDays = Math.max(0, differenceInCalendarDays(end, start) + 1);
       const fridays = input.excludeJomaa ? countFridays(input.missedStartDate, input.missedEndDate) : 0;
+      const excludedPeriodDays = input.excludePeriod && input.periodDays ? calculatePeriodDays(input.missedStartDate, input.missedEndDate, input.periodDays) : 0;
+
+      const baseCount = Math.max(0, diffDays - excludedPeriodDays);
+      const dhuhrCount = Math.max(0, diffDays - fridays - excludedPeriodDays);
 
       const newRange: QadaRange = {
         missedStartDate: input.missedStartDate,
         missedEndDate: input.missedEndDate,
         excludeJomaa: input.excludeJomaa || false,
-        fajrCount: diffDays,
-        dhuhrCount: diffDays - fridays,
-        asrCount: diffDays,
-        maghribCount: diffDays,
-        ishaCount: diffDays,
+        excludePeriod: input.excludePeriod || false,
+        periodDays: input.periodDays || undefined,
+        fajrCount: baseCount,
+        dhuhrCount: dhuhrCount,
+        asrCount: baseCount,
+        maghribCount: baseCount,
+        ishaCount: baseCount,
         fajrCompleted: 0,
         dhuhrCompleted: 0,
         asrCompleted: 0,
@@ -261,7 +277,7 @@ export function useUpdateRange() {
   const t = translations[language as 'en' | 'ar'];
 
   return useMutation({
-    mutationFn: async (data: { rangeIndex: number; missedStartDate: string; missedEndDate: string; excludeJomaa?: boolean }) => {
+    mutationFn: async (data: { rangeIndex: number; missedStartDate: string; missedEndDate: string; excludeJomaa?: boolean; excludePeriod?: boolean; periodDays?: number }) => {
       const current = await getProgress();
       if (!current || !current.ranges[data.rangeIndex]) throw new Error("No progress found");
 
@@ -269,7 +285,10 @@ export function useUpdateRange() {
       const end = parseISO(data.missedEndDate);
       const diffDays = Math.max(0, differenceInCalendarDays(end, start) + 1);
       const fridays = data.excludeJomaa ? countFridays(data.missedStartDate, data.missedEndDate) : 0;
-      const dhuhrCount = diffDays - fridays;
+      const excludedPeriodDays = data.excludePeriod && data.periodDays ? calculatePeriodDays(data.missedStartDate, data.missedEndDate, data.periodDays) : 0;
+
+      const baseCount = Math.max(0, diffDays - excludedPeriodDays);
+      const dhuhrCount = Math.max(0, diffDays - fridays - excludedPeriodDays);
 
       const oldRange = current.ranges[data.rangeIndex];
       const updatedRange: QadaRange = {
@@ -277,18 +296,20 @@ export function useUpdateRange() {
         missedStartDate: data.missedStartDate,
         missedEndDate: data.missedEndDate,
         excludeJomaa: data.excludeJomaa || false,
-        fajrCount: diffDays,
+        excludePeriod: data.excludePeriod || false,
+        periodDays: data.periodDays || undefined,
+        fajrCount: baseCount,
         dhuhrCount: dhuhrCount,
-        asrCount: diffDays,
-        maghribCount: diffDays,
-        ishaCount: diffDays,
+        asrCount: baseCount,
+        maghribCount: baseCount,
+        ishaCount: baseCount,
         // Caps are handled automatically by the next saveProgress if we were distributing, 
         // but here we just want to ensure validity for THIS range immediately.
-        fajrCompleted: Math.min(oldRange.fajrCompleted, diffDays),
+        fajrCompleted: Math.min(oldRange.fajrCompleted, baseCount),
         dhuhrCompleted: Math.min(oldRange.dhuhrCompleted, dhuhrCount),
-        asrCompleted: Math.min(oldRange.asrCompleted, diffDays),
-        maghribCompleted: Math.min(oldRange.maghribCompleted, diffDays),
-        ishaCompleted: Math.min(oldRange.ishaCompleted, diffDays),
+        asrCompleted: Math.min(oldRange.asrCompleted, baseCount),
+        maghribCompleted: Math.min(oldRange.maghribCompleted, baseCount),
+        ishaCompleted: Math.min(oldRange.ishaCompleted, baseCount),
       };
 
       const newRanges = [...current.ranges];

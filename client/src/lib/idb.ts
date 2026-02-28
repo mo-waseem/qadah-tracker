@@ -7,6 +7,8 @@ export interface QadaRange {
   missedStartDate: string;
   missedEndDate: string;
   excludeJomaa?: boolean;
+  excludePeriod?: boolean;
+  periodDays?: number;
   fajrCount: number;
   dhuhrCount: number;
   asrCount: number;

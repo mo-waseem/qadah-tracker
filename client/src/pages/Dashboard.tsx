@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { format, parseISO, differenceInCalendarDays } from "date-fns";
-import { useQada, useUpdateQadaCount, useSetQadaCount, useUpdateRange, useDeleteRange, useImportExport, aggregateRanges, countFridays, type AggregatedQada } from "@/hooks/use-qada";
+import { useQada, useUpdateQadaCount, useSetQadaCount, useUpdateRange, useDeleteRange, useImportExport, aggregateRanges, countFridays, calculatePeriodDays, type AggregatedQada } from "@/hooks/use-qada";
 import { PrayerCard } from "@/components/PrayerCard";
 import { Sun, Moon, Sunrise, Sunset, CloudSun, Settings, Globe, Info, Download, Upload, FileJson, Share, Smartphone, Plus, Trash2, CalendarRange, Pencil } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -52,6 +52,8 @@ export default function Dashboard() {
   const [editStartDate, setEditStartDate] = useState("");
   const [editEndDate, setEditEndDate] = useState("");
   const [editExcludeJomaa, setEditExcludeJomaa] = useState(false);
+  const [editExcludePeriod, setEditExcludePeriod] = useState(false);
+  const [editPeriodDays, setEditPeriodDays] = useState<number | ''>(7);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // PWA Install logic
@@ -136,6 +138,8 @@ export default function Dashboard() {
     setEditStartDate(range.missedStartDate);
     setEditEndDate(range.missedEndDate);
     setEditExcludeJomaa(range.excludeJomaa || false);
+    setEditExcludePeriod(range.excludePeriod || false);
+    setEditPeriodDays(range.periodDays || 7);
   };
 
   const confirmDeleteRange = () => {
@@ -149,6 +153,10 @@ export default function Dashboard() {
     ? Math.max(0, differenceInCalendarDays(parseISO(editEndDate), parseISO(editStartDate)) + 1)
     : 0;
 
+  const editPeriodDaysCount = (editExcludePeriod && typeof editPeriodDays === 'number' && editPeriodDays > 0 && editStartDate && editEndDate && !isNaN(Date.parse(editStartDate)) && !isNaN(Date.parse(editEndDate)))
+    ? calculatePeriodDays(editStartDate, editEndDate, editPeriodDays)
+    : 0;
+
   const confirmEditRange = () => {
     if (editRangeIndex !== null) {
       updateRangeMutation.mutate({
@@ -156,6 +164,8 @@ export default function Dashboard() {
         missedStartDate: editStartDate,
         missedEndDate: editEndDate,
         excludeJomaa: editExcludeJomaa,
+        excludePeriod: editExcludePeriod,
+        periodDays: editExcludePeriod ? (typeof editPeriodDays === 'number' ? editPeriodDays : 7) : undefined,
       });
       setEditRangeIndex(null);
     }
@@ -490,6 +500,64 @@ export default function Dashboard() {
                 </span>
               )}
             </div>
+          </div>
+
+          {/* Exclude Period Checkbox */}
+          <div className="flex flex-col gap-4">
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="editExcludePeriod"
+                checked={editExcludePeriod}
+                onChange={(e) => setEditExcludePeriod(e.target.checked)}
+                className="mt-1 w-5 h-5 rounded border-2 border-border text-primary focus:ring-primary/20 accent-primary cursor-pointer"
+              />
+              <div className="flex-1 flex items-start justify-between">
+                <label htmlFor="editExcludePeriod" className="cursor-pointer">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-medium text-foreground">{t.excludePeriod}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t.excludePeriodHint}</p>
+                </label>
+                {editExcludePeriod && editPeriodDaysCount > 0 && (
+                  <span className="shrink-0 text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
+                    {editPeriodDaysCount} {language === 'ar' ? 'يوم' : editPeriodDaysCount === 1 ? 'Day' : 'Days'}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Period Days Input */}
+            <AnimatePresence>
+              {editExcludePeriod && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden pl-8"
+                >
+                  <label className="text-sm font-medium text-foreground mb-2 block">
+                    {t.periodDaysPerMonth}
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="15"
+                    value={editPeriodDays}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '') {
+                        setEditPeriodDays('');
+                      } else {
+                        const parsed = parseInt(val);
+                        if (!isNaN(parsed)) setEditPeriodDays(parsed);
+                      }
+                    }}
+                    className="w-full max-w-[120px] px-4 py-2 rounded-xl bg-background border-2 border-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           <DialogFooter>

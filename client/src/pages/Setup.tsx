@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { differenceInCalendarDays, parseISO } from "date-fns";
 import { Calendar, ArrowRight, Calculator, Globe, Info } from "lucide-react";
-import { useSetupQada, useQada, countFridays } from "@/hooks/use-qada";
+import { useSetupQada, useQada, countFridays, calculatePeriodDays } from "@/hooks/use-qada";
 import { useLanguageStore } from "@/hooks/use-language";
 import { translations } from "@/lib/translations";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -14,6 +14,8 @@ const setupSchema = z.object({
   startDate: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date"),
   endDate: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date"),
   excludeJomaa: z.boolean().default(false),
+  excludePeriod: z.boolean().default(false),
+  periodDays: z.number().min(1).max(15).optional().default(7),
 }).refine((data) => new Date(data.startDate) < new Date(data.endDate), {
   message: "Start date must be before end date",
   path: ["endDate"],
@@ -38,12 +40,16 @@ export default function Setup() {
       missedStartDate: data.startDate,
       missedEndDate: data.endDate,
       excludeJomaa: data.excludeJomaa,
+      excludePeriod: data.excludePeriod,
+      periodDays: data.excludePeriod ? data.periodDays : undefined,
     });
   };
 
   const watchStartDate = form.watch("startDate");
   const watchEndDate = form.watch("endDate");
   const watchExcludeJomaa = form.watch("excludeJomaa");
+  const watchExcludePeriod = form.watch("excludePeriod");
+  const watchPeriodDays = form.watch("periodDays");
 
   const estimatedDays = watchStartDate && watchEndDate && !isNaN(Date.parse(watchStartDate)) && !isNaN(Date.parse(watchEndDate))
     ? Math.max(0, differenceInCalendarDays(parseISO(watchEndDate), parseISO(watchStartDate)) + 1)
@@ -51,6 +57,10 @@ export default function Setup() {
 
   const fridayCount = (watchExcludeJomaa && watchStartDate && watchEndDate && !isNaN(Date.parse(watchStartDate)) && !isNaN(Date.parse(watchEndDate)))
     ? countFridays(watchStartDate, watchEndDate)
+    : 0;
+
+  const periodDaysCount = (watchExcludePeriod && watchPeriodDays && watchStartDate && watchEndDate && !isNaN(Date.parse(watchStartDate)) && !isNaN(Date.parse(watchEndDate)))
+    ? calculatePeriodDays(watchStartDate, watchEndDate, watchPeriodDays)
     : 0;
 
   return (
@@ -160,6 +170,55 @@ export default function Setup() {
                 </span>
               )}
             </div>
+          </div>
+
+          {/* Exclude Period Checkbox */}
+          <div className="flex flex-col gap-4">
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="excludePeriod"
+                {...form.register("excludePeriod")}
+                className="mt-1 w-5 h-5 rounded border-2 border-border text-primary focus:ring-primary/20 accent-primary cursor-pointer"
+              />
+              <div className="flex-1 flex items-start justify-between">
+                <label htmlFor="excludePeriod" className="cursor-pointer">
+                  <span className="text-sm font-medium text-foreground">{t.excludePeriod}</span>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t.excludePeriodHint}</p>
+                </label>
+                {watchExcludePeriod && periodDaysCount > 0 && (
+                  <span className="shrink-0 text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
+                    {periodDaysCount} {language === 'ar' ? 'يوم' : periodDaysCount === 1 ? 'Day' : 'Days'}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Period Days Input */}
+            <AnimatePresence>
+              {watchExcludePeriod && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden pl-8"
+                >
+                  <label className="text-sm font-medium text-foreground mb-2 block">
+                    {t.periodDaysPerMonth}
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="15"
+                    {...form.register("periodDays", { valueAsNumber: true })}
+                    className="w-full max-w-[120px] px-4 py-2 rounded-xl bg-background border-2 border-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
+                  />
+                  {form.formState.errors.periodDays && (
+                    <p className="text-sm text-destructive mt-1">{form.formState.errors.periodDays.message}</p>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {estimatedDays > 0 && (
